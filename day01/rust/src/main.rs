@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, io::Read};
 
 #[allow(unused)]
 fn calibration_sum_part1(input: &str) -> u32 {
@@ -76,9 +76,12 @@ fn calibration_sum_part2(input: &str) -> u32 {
 }
 
 fn main() -> Result<(), std::io::Error> {
-    let path = "input.txt";
+    // let path = "input.txt";
+    //
+    // let input = std::fs::read_to_string(path)?;
 
-    let input = std::fs::read_to_string(path)?;
+    let mut input = String::new();
+    let _ = std::io::stdin().read_to_string(&mut input)?;
 
     println!("Part 1 Solution: {}", calibration_sum_part1(&input));
     println!("Part 2 Solution: {}", calibration_sum_part2(&input));
