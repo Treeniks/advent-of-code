@@ -3,3 +3,7 @@
 
 # Rust/Cargo
 target/
+
+# Zig
+zig-out/
+zig-cache/
