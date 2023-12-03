@@ -1,7 +1,7 @@
 using Day03
 using Test
 
-const example_part1 = raw"""467..114..
+const example = raw"""467..114..
 ...*......
 ..35..633.
 ......#...
@@ -13,5 +13,5 @@ const example_part1 = raw"""467..114..
 .664.598..
 """
 
-@test part1(example_part1) == 4361
-
+@test part1(example) == 4361
+@test part2(example) == 467835

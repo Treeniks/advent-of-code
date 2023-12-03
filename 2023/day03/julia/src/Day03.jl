@@ -1,6 +1,7 @@
 module Day03
 
 export part1
+export part2
 
 function parse_number(input, i::Integer)
     bi = 0
@@ -50,7 +51,7 @@ end
 function part1(input::AbstractString)::Integer
     numbers = Set()
     lines = split(input, '\n', keepempty=false)
-    for (i, line) in enumerate(lines)
+    for (i, line) in enumerate(map(strip, lines))
         for (j, c) in enumerate(line)
             if !(isdigit(c) || c == '.')
                 union!(numbers, get_numbers_surrounding(lines, i, j))
@@ -65,15 +66,49 @@ function part1(input::AbstractString)::Integer
     result
 end
 
-end # module Day03
+function part2(input::AbstractString)::Integer
+    sum = 0
 
-using .Day03
+    lines = split(input, '\n', keepempty=false)
+    for (i, line) in enumerate(map(strip, lines))
+        for (j, c) in enumerate(line)
+            if c == '*'
+                numbers = get_numbers_surrounding(lines, i, j)
+                if length(numbers) == 2
+                    prod = 1
+                    for (i, j, n) in numbers
+                        prod *= n
+                    end
+                    sum += prod
+                end
+            end
+        end
+    end
+
+    sum
+end
+
+const example = raw"""467..114..
+...*......
+..35..633.
+......#...
+617*......
+.....+.58.
+..592.....
+......755.
+...$.*....
+.664.598..
+"""
 
 function main()
-    println("Part 1: ", part1(read(stdin, String)))
+    input = read(stdin, String)
+
+    println("Part 1: ", part1(input))
+    println("Part 2: ", part2(input))
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
     main()
 end
 
+end # module Day03
