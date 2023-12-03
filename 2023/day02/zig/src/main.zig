@@ -121,7 +121,10 @@ pub fn main() !void {
     const stdout = std.io.getStdOut().writer();
     const stdin = std.io.getStdIn();
 
-    const input = try stdin.readToEndAlloc(std.heap.page_allocator, std.math.maxInt(usize));
+    const allocator = std.heap.page_allocator;
+
+    const input = try stdin.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(input);
 
     const result_part1 = try part1(input);
     const result_part2 = try part2(input);
