@@ -1,12 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
 
-const COLORS = [_][]const u8{
-    "blue",
-    "green",
-    "red",
-};
-
 const ColorMap = struct {
     const Self = @This();
 
