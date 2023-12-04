@@ -3,8 +3,7 @@ let read_until_eof () =
     try
       let line = read_line () in
       aux (acc ^ line ^ "\n")
-    with
-    | End_of_file -> acc
+    with End_of_file -> acc
   in
   aux ""
 
@@ -20,4 +19,3 @@ let () =
   print_newline ();
 
   ()
-
