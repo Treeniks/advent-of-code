@@ -9,7 +9,15 @@ let read_until_eof () =
   aux ""
 
 let () =
-  print_string "Part 1: ";
   let input = read_until_eof () in
-  input |> Day04.part1 |> print_int
+
+  print_string "Part 1: ";
+  input |> Day04.part1 |> print_int;
+  print_newline ();
+
+  print_string "Part 2: ";
+  input |> Day04.part2 |> print_int;
+  print_newline ();
+
+  ()
 

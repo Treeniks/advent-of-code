@@ -1,3 +1,4 @@
 val part1 : string -> int
+val part2 : string -> int
 
-val example_part1 : string
+val example : string
