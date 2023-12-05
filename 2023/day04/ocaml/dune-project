@@ -1,0 +1,22 @@
+(lang dune 3.12)
+
+(name day04)
+
+(generate_opam_files true)
+
+(source
+ (github Treeniks/advent-of-code))
+
+(authors "Thomas Lindae")
+
+; (maintainers "Maintainer Name")
+
+(license LICENSE)
+
+(documentation https://url/to/documentation)
+
+(package
+ (name day04)
+ (depends ocaml dune))
+
+; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
