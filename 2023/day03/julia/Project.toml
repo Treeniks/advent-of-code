@@ -1,0 +1,8 @@
+name = "Day03"
+uuid = "a9b82a4b-2c7c-4ecc-a91b-8ac45e0d779f"
+authors = ["Thomas Lindae <thomas.lindae@in.tum.de>"]
+version = "0.1.0"
+
+[deps]
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
