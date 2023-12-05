@@ -1,15 +1,22 @@
-in julia console:
+# 2023 Day03 Julia
+
+## Run With Input
+
+### Within Julia Shell
+
 ```julia
 julia> using Day03
 julia> part1(read("input.txt", String))
 ```
 
-or directly via the script:
+### Via Script
+
 ```sh
 $ cat input.txt | julia src/Day03.jl
 ```
 
-to run tests:
+## Run Tests
+
 ```sh
 $ julia --project=.
 julia> ]
