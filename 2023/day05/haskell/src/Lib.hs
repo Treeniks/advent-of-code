@@ -8,40 +8,37 @@ where
 import Data.Char
 import Data.List (dropWhileEnd)
 
--- takes a list like
--- [79, 14, 55, 13]
---
--- returns a list of the integers
-parseInts :: [String] -> [Int]
-parseInts [] = []
-parseInts (s : ss) = read s : parseInts ss
+-- from inclusive to exclusive
+data Range = Int :.. Int
+  deriving (Show)
 
--- takes a string like
--- seeds: 79 14 55 13
---
--- returns a list of the integers
+infix 5 :..
+
+-- takes a list like ["79", "14", "55", "13"]
+-- returns [79, 14, 55, 13]
+parseInts :: [String] -> [Int]
+parseInts = map read
+
+-- takes a string like "seeds: 79 14 55 13"
+-- returns [79, 14, 55, 13]
 parseSeedsPart1 :: String -> [Int]
 parseSeedsPart1 input = parseInts $ tail $ words input
 
-parseSeedsPart2 :: String -> [(Int, Int)]
+-- takes a string like "seeds: 79 14 55 13"
+-- returns [79 :.. 93, 55 :.. 68]
+parseSeedsPart2 :: String -> [Range]
 parseSeedsPart2 input = aux $ parseInts $ tail $ words input
   where
-    aux :: [Int] -> [(Int, Int)]
+    aux :: [Int] -> [Range]
     aux [] = []
     aux [_] = error "incorrect number of seeds"
-    aux (x1 : x2 : xs) = (x1, x1 + x2) : aux xs
+    aux (x1 : x2 : xs) = (x1 :.. x1 + x2) : aux xs
 
-containedInSeeds :: Int -> [(Int, Int)] -> Bool
-containedInSeeds _ [] = False
-containedInSeeds x ((sl, sh) : ss) = if (sl <= x && x <= sh) then True else containedInSeeds x ss
-
--- takes a list of lines like
--- 50 98 2
--- 52 50 48
---
--- returns the resulting mapping
-parseMap :: [String] -> (Int -> Int)
-parseMap = aux (\x -> x)
+-- takes a list of lines like ["50 98 2", "52 50 48"]
+-- returns the resulting mapping as a function on integers
+-- {98 |-> 50, 99 |-> 51, 50 |-> 52, ..., 97 |-> 100}
+parseMapPart1 :: [String] -> (Int -> Int)
+parseMapPart1 = aux id
   where
     aux :: (Int -> Int) -> [String] -> (Int -> Int)
     aux m [] = m
@@ -51,27 +48,62 @@ parseMap = aux (\x -> x)
         newMap x =
           case parseInts $ words s of
             [dest, source, len] ->
-              if (x >= source) && (source + len > x)
+              if x >= source && (source + len > x)
                 then (x - source) + dest
                 else m x
-            _ -> error "incorrect number of ints in map"
+            _ -> error "incorrect number of values in map"
 
--- code duplication oh no
-parseReverseMap :: [String] -> (Int -> Int)
-parseReverseMap = aux (\x -> x)
+-- other Range functions that ended up being unnecessary
+--
+-- union :: Range -> Range -> [Range]
+-- union (l1 :.. u1) (l2 :.. u2) =
+--   if l1 <= u2 || l2 <= u1 then [min l1 l2 :.. max u1 u2] else [l1 :.. u1, l2 :.. u2]
+--
+-- difference :: Range -> Range -> [Range]
+-- difference (l1 :.. u1) (l2 :.. u2)
+--   | not $ overlap (l1 :.. u1) (l2 :.. u2) = [l1 :.. u1]
+--   | l2 <= l1 && u1 <= u2 = []
+--   | l1 < l2 && u2 < u1 = [l1 :.. l2, u2 :.. u1]
+--   | l2 < l1 = [u2 :.. u1]
+--   | otherwise = [l1 :.. l2]
+
+overlap :: Range -> Range -> Bool
+overlap (l1 :.. u1) (l2 :.. u2) = (l1 < u2 && u1 > l2) || (l2 < u1 && u2 > l1)
+
+intersection :: Range -> Range -> Maybe Range
+intersection (l1 :.. u1) (l2 :.. u2) =
+  if overlap (l1 :.. u1) (l2 :.. u2) then Just (max l1 l2 :.. min u1 u2) else Nothing
+
+-- takes a list of lines like ["50 98 2", "52 50 48"]
+-- returns the resulting mapping as a function on ranges
+-- the result of applying a range to this function is a list of ranges
+-- as the range might get split in the process
+parseMapPart2 :: [String] -> (Range -> [Range])
+parseMapPart2 = aux (\x -> [x])
   where
-    aux :: (Int -> Int) -> [String] -> (Int -> Int)
+    aux :: (Range -> [Range]) -> [String] -> (Range -> [Range])
     aux m [] = m
     aux m (s : ss) = aux newMap ss
       where
-        newMap :: (Int -> Int)
-        newMap x =
+        newMap :: Range -> [Range]
+        newMap (lower :.. upper) =
           case parseInts $ words s of
-            [source, dest, len] ->
-              if (x >= source) && (source + len > x)
-                then (x - source) + dest
-                else m x
-            _ -> error "incorrect number of ints in map"
+            [dest, source, len] ->
+              case intersection (lower :.. upper) (source :.. source + len) of
+                Nothing -> m (lower :.. upper)
+                Just (l :.. u)
+                  | l == lower && u == upper -> [l + diff :.. u + diff]
+                  | l == lower && u < upper -> [l + diff :.. u + diff] ++ m (u :.. upper)
+                  | l > lower && u == upper -> m (lower :.. l) ++ [l + diff :.. u + diff]
+                  | otherwise -> m (lower :.. l) ++ [l + diff :.. u + diff] ++ m (u :.. upper)
+              where
+                diff = dest - source
+            _ -> error "incorrect number of values in map"
+
+findMinInRanges :: [Range] -> Int
+findMinInRanges [] = error "cannot find minimum in no ranges"
+findMinInRanges [(l :.. _)] = l
+findMinInRanges ((l :.. _) : rs) = min l $ findMinInRanges rs
 
 splitOnEmptyLines :: [String] -> [[String]]
 splitOnEmptyLines input = aux input []
@@ -86,26 +118,23 @@ part1 input = aux maps seeds
     trimmed = dropWhileEnd isSpace $ dropWhile isSpace input
     splitted = splitOnEmptyLines $ lines trimmed
     seeds = parseSeedsPart1 $ head $ head splitted
-    maps = map (\b -> parseMap $ tail b) $ tail splitted
+    maps = map (\b -> parseMapPart1 $ tail b) $ tail splitted
 
     aux :: [(Int -> Int)] -> [Int] -> Int
     aux [] xs = minimum xs
     aux (m : ms) xs = aux ms $ map m xs
 
 part2 :: String -> Int
-part2 input = aux 0 maps
+part2 input = findMinInRanges $ aux maps seeds
   where
     trimmed = dropWhileEnd isSpace $ dropWhile isSpace input
     splitted = splitOnEmptyLines $ lines trimmed
     seeds = parseSeedsPart2 $ head $ head splitted
-    maps = reverse $ map (\b -> parseReverseMap $ tail b) $ tail splitted
+    maps = map (\b -> parseMapPart2 $ tail b) $ tail splitted
 
-    tryValue :: Int -> [(Int -> Int)] -> Bool
-    tryValue x [] = containedInSeeds x seeds
-    tryValue x (m : ms) = tryValue (m x) ms
-
-    aux :: Int -> [(Int -> Int)] -> Int
-    aux x ms = if (tryValue x ms) then x else aux (x + 1) ms
+    aux :: [Range -> [Range]] -> [Range] -> [Range]
+    aux [] xs = xs
+    aux (m : ms) xs = aux ms $ concat $ map m xs
 
 example :: String
 example =
