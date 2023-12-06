@@ -4,7 +4,7 @@ exception ParseError of string
 
 let ( << ) f g x = f (g x)
 
-let parse_line_part1 line =
+let parse_line_part1 (line : string) : int list =
   match String.split_on_char ':' line with
   | [ _; l ] ->
       String.trim l |> String.split_on_char ' '
@@ -12,7 +12,7 @@ let parse_line_part1 line =
       |> map int_of_string
   | _ -> raise (ParseError "line is incorrect")
 
-let parse_line_part2 line =
+let parse_line_part2 (line : string) : int =
   match String.split_on_char ':' line with
   | [ _; l ] ->
       String.trim l |> String.split_on_char ' '
@@ -45,31 +45,28 @@ let dists time_total =
 (*   in *)
 (*   aux (time_total - 1) *)
 
-let part1 input =
+let parse_input input parse_line =
   match String.trim input |> String.split_on_char '\n' with
   | [ linet; lined ] ->
-      let times = parse_line_part1 linet in
-      let distances = parse_line_part1 lined in
-
-      let rec aux times distances acc =
-        match (times, distances) with
-        | [], [] -> acc
-        | t :: ts, d :: ds ->
-            aux ts ds ((dists t |> filter (( < ) d) |> length) * acc)
-        | _ ->
-            raise (ParseError "amount of times and distances is not the same")
-      in
-      aux times distances 1
+      let t = parse_line linet in
+      let d = parse_line lined in
+      (t, d)
   | _ -> raise (ParseError "too many or too little lines")
+
+let part1 input =
+  let times, distances = parse_input input parse_line_part1 in
+  let rec aux times distances acc =
+    match (times, distances) with
+    | [], [] -> acc
+    | t :: ts, d :: ds ->
+        aux ts ds ((dists t |> filter (( < ) d) |> length) * acc)
+    | _ -> raise (ParseError "amount of times and distances is not the same")
+  in
+  aux times distances 1
 
 let part2 input =
-  match String.trim input |> String.split_on_char '\n' with
-  | [ linet; lined ] ->
-      let time = parse_line_part2 linet in
-      let distance = parse_line_part2 lined in
-
-      dists time |> filter (( < ) distance) |> length
-  | _ -> raise (ParseError "too many or too little lines")
+  let time, distance = parse_input input parse_line_part2 in
+  dists time |> filter (( < ) distance) |> length
 
 let example = {|Time:      7  15   30
 Distance:  9  40  200
