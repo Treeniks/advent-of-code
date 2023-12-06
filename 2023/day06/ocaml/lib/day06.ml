@@ -20,31 +20,6 @@ let parse_line_part2 (line : string) : int =
       |> fold_left ( ^ ) "" |> int_of_string
   | _ -> raise (ParseError "line is incorrect")
 
-let len_achieved time_total time_pressed =
-  let time_moving = time_total - time_pressed in
-  let speed = time_pressed in
-  time_moving * speed
-
-let dists time_total =
-  (* tail recursive *)
-  (* technically gives the distances in the wrong order *)
-  (* but there is no need to reverse acc in the end as the order does not matter *)
-  (* and if it did, we might as well just count up instead of down *)
-  let rec aux time acc =
-    if time == 0 then acc
-    else aux (time - 1) (len_achieved time_total time :: acc)
-  in
-  (* assuming time_total != 0 *)
-  aux (time_total - 1) []
-
-(* original dists that resulted in a stackoverflow for part 2 *)
-(* let dists time_total = *)
-(*   let rec aux = function *)
-(*     | 0 -> [] *)
-(*     | time -> len_achieved time_total time :: aux (time - 1) *)
-(*   in *)
-(*   aux (time_total - 1) *)
-
 let parse_input input parse_line =
   match String.trim input |> String.split_on_char '\n' with
   | [ linet; lined ] ->
@@ -53,20 +28,27 @@ let parse_input input parse_line =
       (t, d)
   | _ -> raise (ParseError "too many or too little lines")
 
+let solver time distance =
+  let t = float_of_int time in
+  let d = float_of_int distance in
+
+  (* both boundaries are exclusive *)
+  let boundary_low =
+    (t -. sqrt ((t *. t) -. (4. *. d))) /. 2. |> floor |> int_of_float
+  in
+  let boundary_high =
+    (t +. sqrt ((t *. t) -. (4. *. d))) /. 2. |> ceil |> int_of_float
+  in
+
+  boundary_high - boundary_low - 1
+
 let part1 input =
   let times, distances = parse_input input parse_line_part1 in
-  let rec aux times distances acc =
-    match (times, distances) with
-    | [], [] -> acc
-    | t :: ts, d :: ds ->
-        aux ts ds ((dists t |> filter (( < ) d) |> length) * acc)
-    | _ -> raise (ParseError "amount of times and distances is not the same")
-  in
-  aux times distances 1
+  map2 solver times distances |> fold_left ( * ) 1
 
 let part2 input =
   let time, distance = parse_input input parse_line_part2 in
-  dists time |> filter (( < ) distance) |> length
+  solver time distance
 
 let example = {|Time:      7  15   30
 Distance:  9  40  200
