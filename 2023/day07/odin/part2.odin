@@ -1,3 +1,5 @@
+// this is mostly copied and modified from part 1
+
 package main
 
 import "core:strings"
@@ -7,8 +9,10 @@ import "core:strconv"
 
 @(private="file")
 CardType :: enum {
-    A, K, Q, J,
+    A, K, Q,
     T, N9, N8, N7, N6, N5, N4, N3, N2,
+    // J is now the lowest value card
+    J,
 }
 
 @(private="file")
@@ -49,14 +53,22 @@ hand_less :: proc(i: Hand, j: Hand) -> bool {
 @(private="file")
 get_same_higher_lower :: proc(input: string) -> (same_higher: int, same_lower: int) {
     higher_symbol: u8
+    number_of_jokers := 0
     for i := 0; i < len(input); i += 1 {
         tmp := 0
         symbol := input[i]
 
+        // ignore jokers
+        if symbol == 'J' {
+            number_of_jokers += 1
+            continue
+        }
+
         if symbol == higher_symbol { continue }
 
         for j := i; j < len(input); j += 1 {
-            if input[j] == symbol {
+            // ignore jokers
+            if input[j] == symbol && input[j] != 'J' {
                 tmp += 1
             }
         }
@@ -70,10 +82,14 @@ get_same_higher_lower :: proc(input: string) -> (same_higher: int, same_lower: i
         }
     }
 
+    // jokers will only ever be added
+    // to the same_higher cards
+    same_higher += number_of_jokers
+
     return
 }
 
-part1 :: proc(input: string) -> (result: int, err: runtime.Allocator_Error) {
+part2 :: proc(input: string) -> (result: int, err: runtime.Allocator_Error) {
     trimmed := strings.trim_space(input)
     lines := strings.split_lines(trimmed) or_return
 
@@ -85,6 +101,7 @@ part1 :: proc(input: string) -> (result: int, err: runtime.Allocator_Error) {
         value := tmp[1]
 
         hand_type := evaluate_handtype(hand, get_same_higher_lower)
+        higher, lower := get_same_higher_lower(hand)
         hands[i] = Hand{hand_type, strconv.atoi(value), hand}
     }
 
