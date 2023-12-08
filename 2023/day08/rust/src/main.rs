@@ -2,8 +2,9 @@ use num::integer::lcm;
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::Read;
+use std::ops::ControlFlow;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum Instruction {
     Left,
     Right,
@@ -26,22 +27,21 @@ fn parse_instructions(line: &str) -> Vec<Instruction> {
 }
 
 fn parse_paths<'a>(paths: &[&'a str]) -> HashMap<&'a str, (&'a str, &'a str)> {
-    let mut result = HashMap::new();
-
     let re = Regex::new(r#"(?<from>.{3}) = \((?<left>.{3}), (?<right>.{3})\)"#).unwrap();
 
-    for line in paths {
-        let caps = re.captures(line).unwrap();
+    paths
+        .iter()
+        .map(|line| {
+            let caps = re.captures(line).unwrap();
 
-        // we cannot use indexing here because of lifetime stuff
-        let from = caps.name("from").unwrap().as_str();
-        let left = caps.name("left").unwrap().as_str();
-        let right = caps.name("right").unwrap().as_str();
+            // we cannot use indexing here because of lifetime stuff
+            let from = caps.name("from").unwrap().as_str();
+            let left = caps.name("left").unwrap().as_str();
+            let right = caps.name("right").unwrap().as_str();
 
-        _ = result.insert(from, (left, right));
-    }
-
-    result
+            (from, (left, right))
+        })
+        .collect()
 }
 
 fn get_start_nodes_part2<'a>(paths: &[&'a str]) -> Vec<&'a str> {
@@ -58,24 +58,41 @@ fn get_start_nodes_part2<'a>(paths: &[&'a str]) -> Vec<&'a str> {
         .collect()
 }
 
+fn next_node<'a>(
+    paths: &'a HashMap<&'a str, (&'a str, &'a str)>,
+    node: &'a str,
+    instruction: Instruction,
+) -> &'a str {
+    match instruction {
+        Instruction::Left => paths[node].0,
+        Instruction::Right => paths[node].1,
+    }
+}
+
+// I am aware this is ridiculous code
+// but I wanted to see how far I can push iterators here
+//
+// a more reasonable solution can be found in commits
+
 fn part1(input: &str) -> usize {
     let lines: Vec<_> = input.trim().lines().collect();
     let instructions = parse_instructions(lines[0]);
     let paths = parse_paths(&lines[2..]);
 
-    let mut current = "AAA";
-    for (i, instr) in instructions.iter().cycle().enumerate() {
-        current = match instr {
-            Instruction::Left => paths[current].0,
-            Instruction::Right => paths[current].1,
-        };
-
-        if current == "ZZZ" {
-            return i + 1;
-        }
+    match instructions
+        .into_iter()
+        .cycle()
+        .try_fold(("AAA", 0), |(current, steps), instr| {
+            if current == "ZZZ" {
+                ControlFlow::Break(steps)
+            } else {
+                ControlFlow::Continue((next_node(&paths, current, instr), steps + 1))
+            }
+        }) {
+        // TODO replace with `.break_value().unwrap()` once `break_value()` is stable
+        ControlFlow::Continue(_) => unreachable!(),
+        ControlFlow::Break(result) => result,
     }
-
-    unreachable!()
 }
 
 fn part2(input: &str) -> usize {
@@ -83,54 +100,38 @@ fn part2(input: &str) -> usize {
     let instructions = parse_instructions(lines[0]);
     let paths = parse_paths(&lines[2..]);
 
-    // naïve solution that takes way too long to run
-    //
-    // let mut nodes = get_start_nodes_part2(&lines[2..]);
-    // for (i, instr) in instructions.iter().cycle().enumerate() {
-    //     nodes.iter_mut().for_each(|n| match instr {
-    //         Instruction::Left => *n = paths[n].0,
-    //         Instruction::Right => *n = paths[n].1,
-    //     });
-    //
-    //     if nodes.iter().all(|n| n.ends_with('Z')) {
-    //         return i + 1;
-    //     }
-    // }
-    // unreachable!()
-
     let start_nodes = get_start_nodes_part2(&lines[2..]);
 
     start_nodes
         .into_iter()
         .map(|start| {
-            instructions
-                .iter()
-                .cycle()
-                .scan(
-                    (start, 0, None),
-                    |(current, steps, first_iteration), instr| {
-                        *current = match instr {
-                            Instruction::Left => paths[current].0,
-                            Instruction::Right => paths[current].1,
-                        };
-                        *steps += 1;
-
-                        if current.ends_with('Z') {
-                            match first_iteration {
-                                Some(first_iteration) => Some(Some(lcm(*first_iteration, *steps))),
-                                None => {
-                                    *first_iteration = Some(*steps);
-                                    *steps = 0;
-                                    Some(None)
-                                }
+            match instructions.iter().cycle().try_fold(
+                (start, 0, None),
+                |(current, steps, first_iteration), instr| {
+                    if current.ends_with('Z') {
+                        match first_iteration {
+                            Some(first_iteration) => {
+                                ControlFlow::Break(lcm(first_iteration, steps))
                             }
-                        } else {
-                            Some(None)
+                            None => ControlFlow::Continue((
+                                next_node(&paths, current, *instr),
+                                1,
+                                Some(steps),
+                            )),
                         }
-                    },
-                )
-                .find_map(|x| x)
-                .unwrap()
+                    } else {
+                        ControlFlow::Continue((
+                            next_node(&paths, current, *instr),
+                            steps + 1,
+                            first_iteration,
+                        ))
+                    }
+                },
+            ) {
+                // TODO replace with `.break_value().unwrap()` once `break_value()` is stable
+                ControlFlow::Continue(_) => unreachable!(),
+                ControlFlow::Break(res) => res,
+            }
         })
         .reduce(lcm)
         .unwrap()
