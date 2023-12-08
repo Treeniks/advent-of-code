@@ -2,7 +2,6 @@ use num::integer::lcm;
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::Read;
-use std::thread;
 
 #[derive(Debug)]
 enum Instruction {
@@ -22,11 +21,8 @@ impl TryFrom<char> for Instruction {
     }
 }
 
-fn parse_instructions(line: &str) -> Box<[Instruction]> {
-    line.chars()
-        .map(|c| c.try_into().unwrap())
-        .collect::<Vec<_>>()
-        .into_boxed_slice()
+fn parse_instructions(line: &str) -> Vec<Instruction> {
+    line.chars().map(|c| c.try_into().unwrap()).collect()
 }
 
 fn parse_paths<'a>(paths: &[&'a str]) -> HashMap<&'a str, (&'a str, &'a str)> {
@@ -48,7 +44,7 @@ fn parse_paths<'a>(paths: &[&'a str]) -> HashMap<&'a str, (&'a str, &'a str)> {
     result
 }
 
-fn get_start_nodes_part2<'a>(paths: &[&'a str]) -> Box<[&'a str]> {
+fn get_start_nodes_part2<'a>(paths: &[&'a str]) -> Vec<&'a str> {
     paths
         .iter()
         .filter_map(|l| {
@@ -59,8 +55,7 @@ fn get_start_nodes_part2<'a>(paths: &[&'a str]) -> Box<[&'a str]> {
                 None
             }
         })
-        .collect::<Vec<_>>()
-        .into_boxed_slice()
+        .collect()
 }
 
 fn part1(input: &str) -> usize {
@@ -70,10 +65,10 @@ fn part1(input: &str) -> usize {
 
     let mut current = "AAA";
     for (i, instr) in instructions.iter().cycle().enumerate() {
-        match instr {
-            Instruction::Left => current = paths[current].0,
-            Instruction::Right => current = paths[current].1,
-        }
+        current = match instr {
+            Instruction::Left => paths[current].0,
+            Instruction::Right => paths[current].1,
+        };
 
         if current == "ZZZ" {
             return i + 1;
@@ -88,7 +83,7 @@ fn part2(input: &str) -> usize {
     let instructions = parse_instructions(lines[0]);
     let paths = parse_paths(&lines[2..]);
 
-    // single threaded solution that takes way too long to run
+    // naïve solution that takes way too long to run
     //
     // let mut nodes = get_start_nodes_part2(&lines[2..]);
     // for (i, instr) in instructions.iter().cycle().enumerate() {
@@ -105,40 +100,40 @@ fn part2(input: &str) -> usize {
 
     let start_nodes = get_start_nodes_part2(&lines[2..]);
 
-    let iterations = thread::scope(|s| {
-        let mut threads = Vec::new();
+    start_nodes
+        .into_iter()
+        .map(|start| {
+            instructions
+                .iter()
+                .cycle()
+                .scan(
+                    (start, 0, None),
+                    |(current, steps, first_iteration), instr| {
+                        *current = match instr {
+                            Instruction::Left => paths[current].0,
+                            Instruction::Right => paths[current].1,
+                        };
+                        *steps += 1;
 
-        for start in start_nodes.iter() {
-            threads.push(s.spawn(|| {
-                let mut current = *start;
-                let mut first_iteration = 0;
-
-                for (i, instr) in instructions.iter().cycle().enumerate() {
-                    match instr {
-                        Instruction::Left => current = paths[current].0,
-                        Instruction::Right => current = paths[current].1,
-                    }
-
-                    if current.ends_with('Z') {
-                        if first_iteration == 0 {
-                            first_iteration = i + 1;
+                        if current.ends_with('Z') {
+                            match first_iteration {
+                                Some(first_iteration) => Some(Some(lcm(*first_iteration, *steps))),
+                                None => {
+                                    *first_iteration = Some(*steps);
+                                    *steps = 0;
+                                    Some(None)
+                                }
+                            }
                         } else {
-                            return lcm(first_iteration, i + 1 - first_iteration);
+                            Some(None)
                         }
-                    }
-                }
-
-                unreachable!()
-            }));
-        }
-
-        threads
-            .into_iter()
-            .map(|t| t.join().unwrap())
-            .collect::<Vec<_>>()
-    });
-
-    iterations.into_iter().reduce(lcm).unwrap()
+                    },
+                )
+                .find_map(|x| x)
+                .unwrap()
+        })
+        .reduce(lcm)
+        .unwrap()
 }
 
 fn main() -> Result<(), std::io::Error> {
