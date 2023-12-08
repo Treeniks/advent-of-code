@@ -1,7 +1,8 @@
 use num::integer::lcm;
 use regex::Regex;
+use std::collections::HashMap;
+use std::io::Read;
 use std::thread;
-use std::{collections::HashMap, io::Read};
 
 #[derive(Debug)]
 enum Instruction {
@@ -31,16 +32,13 @@ fn parse_instructions(line: &str) -> Box<[Instruction]> {
 fn parse_paths<'a>(paths: &[&'a str]) -> HashMap<&'a str, (&'a str, &'a str)> {
     let mut result = HashMap::new();
 
-    let to_re = Regex::new(r#"\((?<left>.{3}), (?<right>.{3})\)"#).unwrap();
+    let re = Regex::new(r#"(?<from>.{3}) = \((?<left>.{3}), (?<right>.{3})\)"#).unwrap();
 
     for line in paths {
-        let mut it = line.split('=');
-        let from = it.next().unwrap().trim();
-        let to = it.next().unwrap().trim();
-
-        let caps = to_re.captures(to).unwrap();
+        let caps = re.captures(line).unwrap();
 
         // we cannot use indexing here because of lifetime stuff
+        let from = caps.name("from").unwrap().as_str();
         let left = caps.name("left").unwrap().as_str();
         let right = caps.name("right").unwrap().as_str();
 
@@ -125,7 +123,7 @@ fn part2(input: &str) -> usize {
                         if first_iteration == 0 {
                             first_iteration = i + 1;
                         } else {
-                            return (first_iteration, i + 1 - first_iteration);
+                            return lcm(first_iteration, i + 1 - first_iteration);
                         }
                     }
                 }
@@ -136,10 +134,7 @@ fn part2(input: &str) -> usize {
 
         threads
             .into_iter()
-            .map(|t| {
-                let val = t.join().unwrap();
-                lcm(val.0, val.1)
-            })
+            .map(|t| t.join().unwrap())
             .collect::<Vec<_>>()
     });
 
