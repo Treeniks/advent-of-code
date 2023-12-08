@@ -1,4 +1,6 @@
+use num::integer::lcm;
 use regex::Regex;
+use std::thread;
 use std::{collections::HashMap, io::Read};
 
 #[derive(Debug)]
@@ -48,6 +50,21 @@ fn parse_paths<'a>(paths: &[&'a str]) -> HashMap<&'a str, (&'a str, &'a str)> {
     result
 }
 
+fn get_start_nodes_part2<'a>(paths: &[&'a str]) -> Box<[&'a str]> {
+    paths
+        .iter()
+        .filter_map(|l| {
+            let m = l.split('=').next().unwrap().trim();
+            if m.ends_with('A') {
+                Some(m)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice()
+}
+
 fn part1(input: &str) -> usize {
     let lines: Vec<_> = input.trim().lines().collect();
     let instructions = parse_instructions(lines[0]);
@@ -61,11 +78,72 @@ fn part1(input: &str) -> usize {
         }
 
         if current == "ZZZ" {
-            return i + 1
+            return i + 1;
         }
     }
 
     unreachable!()
+}
+
+fn part2(input: &str) -> usize {
+    let lines: Vec<_> = input.trim().lines().collect();
+    let instructions = parse_instructions(lines[0]);
+    let paths = parse_paths(&lines[2..]);
+
+    // single threaded solution that takes way too long to run
+    //
+    // let mut nodes = get_start_nodes_part2(&lines[2..]);
+    // for (i, instr) in instructions.iter().cycle().enumerate() {
+    //     nodes.iter_mut().for_each(|n| match instr {
+    //         Instruction::Left => *n = paths[n].0,
+    //         Instruction::Right => *n = paths[n].1,
+    //     });
+    //
+    //     if nodes.iter().all(|n| n.ends_with('Z')) {
+    //         return i + 1;
+    //     }
+    // }
+    // unreachable!()
+
+    let start_nodes = get_start_nodes_part2(&lines[2..]);
+
+    let iterations = thread::scope(|s| {
+        let mut threads = Vec::new();
+
+        for start in start_nodes.iter() {
+            threads.push(s.spawn(|| {
+                let mut current = *start;
+                let mut first_iteration = 0;
+
+                for (i, instr) in instructions.iter().cycle().enumerate() {
+                    match instr {
+                        Instruction::Left => current = paths[current].0,
+                        Instruction::Right => current = paths[current].1,
+                    }
+
+                    if current.ends_with('Z') {
+                        if first_iteration == 0 {
+                            first_iteration = i + 1;
+                        } else {
+                            return (first_iteration, i + 1 - first_iteration);
+                        }
+                    }
+                }
+
+                unreachable!()
+            }));
+        }
+
+        threads
+            .into_iter()
+            .map(|t| {
+                let val = t.join().unwrap();
+                lcm(val.0, val.1)
+            })
+            .collect::<Vec<_>>()
+    });
+
+    iterations.into_iter().reduce(lcm).unwrap()
 }
 
 fn main() -> Result<(), std::io::Error> {
@@ -73,7 +151,7 @@ fn main() -> Result<(), std::io::Error> {
     let _ = std::io::stdin().read_to_string(&mut input)?;
 
     println!("Part 1: {}", part1(&input));
-    // println!("Part 2: {}", part2(&input));
+    println!("Part 2: {}", part2(&input));
 
     Ok(())
 }
@@ -112,6 +190,26 @@ ZZZ = (ZZZ, ZZZ)
 
         let expected = 6;
         let result = part1(input);
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_part2() {
+        let input = "LR
+
+11A = (11B, XXX)
+11B = (XXX, 11Z)
+11Z = (11B, XXX)
+22A = (22B, XXX)
+22B = (22C, 22C)
+22C = (22Z, 22Z)
+22Z = (22B, 22B)
+XXX = (XXX, XXX)
+";
+
+        let expected = 6;
+        let result = part2(input);
 
         assert_eq!(expected, result);
     }
