@@ -20,7 +20,7 @@ proc differentiate(line: seq[int]): seq[seq[int]] =
     if new_entry.all(proc (x: int): bool = x == 0):
       break
 
-proc extrapolate(diffs: var seq[seq[int]]) =
+proc extrapolate_right(diffs: var seq[seq[int]]) =
   diffs[high diffs].add(0)
   for i in countdown(pred high diffs, low diffs):
     let current = diffs[i]
@@ -32,17 +32,41 @@ proc extrapolate(diffs: var seq[seq[int]]) =
     let right = res + left
     diffs[i].add(right)
 
-proc part1*(input: string): int =
+# extremely inefficient
+proc extrapolate_left(diffs: var seq[seq[int]]) =
+  diffs[high diffs].add(0)
+  for i in countdown(pred high diffs, low diffs):
+    let current = diffs[i]
+    let next = diffs[succ i]
+
+    let right = current[low current]
+    let res = next[low next]
+    # res = right - left => left = right - res
+    let left = right - res
+    diffs[i].insert(left, low current)
+
+func part1*(input: string): int =
   result = 0
   for line in input.strip().splitLines():
     var s = parseLine(line)
     var diffs = differentiate(s)
-    extrapolate(diffs)
+    extrapolate_right(diffs)
 
     let tmp = diffs[low diffs]
     result += tmp[high tmp]
+
+func part2*(input: string): int =
+  result = 0
+  for line in input.strip().splitLines():
+    var s = parseLine(line)
+    var diffs = differentiate(s)
+    extrapolate_left(diffs)
+
+    let tmp = diffs[low diffs]
+    result += tmp[low tmp]
 
 when isMainModule:
   let input = readAll(stdin)
 
   echo "Part 1: " & $part1(input)
+  echo "Part 2: " & $part2(input)

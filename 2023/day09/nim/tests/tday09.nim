@@ -7,3 +7,6 @@ const input = """0 3 6 9 12 15
 
 test "Part 1":
   check part1(input) == 114
+
+test "Part 2":
+  check part2(input) == 2
