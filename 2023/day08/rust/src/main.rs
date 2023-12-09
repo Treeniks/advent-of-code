@@ -105,29 +105,20 @@ fn part2(input: &str) -> usize {
     start_nodes
         .into_iter()
         .map(|start| {
-            match instructions.iter().cycle().try_fold(
-                (start, 0, None),
-                |(current, steps, first_iteration), instr| {
+            match instructions
+                .iter()
+                .cycle()
+                // technically we would have to do a lot more here
+                // but AOC gives us only well behaved inputs
+                // where after reaching the end, we will always
+                // go in cycles of the same length
+                .try_fold((start, 0), |(current, steps), instr| {
                     if current.ends_with('Z') {
-                        match first_iteration {
-                            Some(first_iteration) => {
-                                ControlFlow::Break(lcm(first_iteration, steps))
-                            }
-                            None => ControlFlow::Continue((
-                                next_node(&paths, current, *instr),
-                                1,
-                                Some(steps),
-                            )),
-                        }
+                        ControlFlow::Break(steps)
                     } else {
-                        ControlFlow::Continue((
-                            next_node(&paths, current, *instr),
-                            steps + 1,
-                            first_iteration,
-                        ))
+                        ControlFlow::Continue((next_node(&paths, current, *instr), steps + 1))
                     }
-                },
-            ) {
+                }) {
                 // TODO replace with `.break_value().unwrap()` once `break_value()` is stable
                 ControlFlow::Continue(_) => unreachable!(),
                 ControlFlow::Break(res) => res,
