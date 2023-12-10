@@ -88,9 +88,9 @@ static std::vector<char> find_loop(const std::vector<std::string> &lines,
     auto [prev_x, prev_y] = start;
     auto [current_x, current_y] = first;
 
-    std::vector<char> neighbours{lines[prev_y][prev_x]};
+    std::vector<char> loop{lines[prev_y][prev_x]};
     while (lines[current_y][current_x] != 'S') {
-        neighbours.push_back(lines[current_y][current_x]);
+        loop.push_back(lines[current_y][current_x]);
 
         // std::cout << lines[current_y][current_x] << std::endl;
 
@@ -112,7 +112,7 @@ static std::vector<char> find_loop(const std::vector<std::string> &lines,
         }
     }
 
-    return neighbours;
+    return loop;
 }
 
 size_t part1(const std::string &input) {
@@ -125,7 +125,7 @@ size_t part1(const std::string &input) {
 
     const auto start = find_S(lines);
 
-    const auto neighbours = find_loop(lines, start);
+    const auto loop = find_loop(lines, start);
 
-    return neighbours.size() / 2;
+    return loop.size() / 2;
 }
