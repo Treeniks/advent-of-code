@@ -1,5 +1,9 @@
 input.txt
 
+# JetBrains
+.idea/
+cmake-build-debug/
+
 # MacOS
 .DS_Store
 
@@ -15,3 +19,8 @@ _build/
 
 # Haskell
 .stack-work/
+
+# C++
+build/
+.cache/
+compile_commands.json

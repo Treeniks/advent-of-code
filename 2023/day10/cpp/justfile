@@ -1,0 +1,9 @@
+build:
+    mkdir -p build
+    cd build && cmake .. && make
+
+run: build
+    build/day10
+
+test: build
+    build/day10_test
