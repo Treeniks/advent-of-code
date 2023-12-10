@@ -1,4 +1,4 @@
-#include "day10_impl.hpp"
+#include "day10_part1.hpp"
 
 #include <optional>
 #include <sstream>
@@ -6,7 +6,7 @@
 #include <tuple>
 #include <vector>
 
-std::tuple<size_t, size_t> find_S(std::vector<std::string> &lines) {
+static std::tuple<size_t, size_t> find_S(std::vector<std::string> &lines) {
     for (size_t i = 0; i < lines.size(); i++) {
         for (size_t j = 0; j < lines[i].size(); j++) {
             if (lines[i][j] == 'S') {
@@ -19,7 +19,7 @@ std::tuple<size_t, size_t> find_S(std::vector<std::string> &lines) {
     return std::make_tuple(0, 0);
 }
 
-std::tuple<std::tuple<size_t, size_t>, std::tuple<size_t, size_t>>
+static std::tuple<std::tuple<size_t, size_t>, std::tuple<size_t, size_t>>
 find_neighbours(const std::vector<std::string> &lines,
                 std::tuple<size_t, size_t> pos) {
     std::optional<std::tuple<size_t, size_t>> first = std::nullopt;
@@ -81,8 +81,8 @@ find_neighbours(const std::vector<std::string> &lines,
     return std::make_tuple(first.value(), second.value());
 }
 
-std::vector<char> find_loop(const std::vector<std::string> &lines,
-                            std::tuple<size_t, size_t> start) {
+static std::vector<char> find_loop(const std::vector<std::string> &lines,
+                                   std::tuple<size_t, size_t> start) {
     auto [first, second] = find_neighbours(lines, start);
 
     auto [prev_x, prev_y] = start;
