@@ -7,3 +7,7 @@ run: build
 
 test: build
     build/day10_test
+
+clean:
+    rm -rf build
+    rm compile_commands.json
