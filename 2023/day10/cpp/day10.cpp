@@ -9,8 +9,11 @@ int main() {
     buffer << std::cin.rdbuf();
     const std::string input = buffer.str();
 
-    std::cout << "Part 1: " << part1(input) << std::endl;
-    std::cout << "Part 2: " << part2(input) << std::endl;
+    const size_t result_part1 = part1(input);
+    std::cout << "Part 1: " << result_part1 << std::endl;
+
+    const size_t result_part2 = part2(input);
+    std::cout << "Part 2: " << result_part2 << std::endl;
 
     return 0;
 }
