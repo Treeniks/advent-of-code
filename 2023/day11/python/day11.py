@@ -1,18 +1,6 @@
 import itertools
 import sys
 
-example = """...#......
-.......#..
-#.........
-..........
-......#...
-.#........
-.........#
-..........
-.......#..
-#...#.....
-"""
-
 def no_galaxies(line):
     for c in line:
         if c != '.':
@@ -69,12 +57,17 @@ def solve(input, multiplier):
         distances.append(distance)
     return sum(distances)
 
+def part1(input):
+    return solve(input, 2)
+
+def part2(input):
+    return solve(input, 1000000)
+
 if __name__ == "__main__":
-    # input = example
     input = sys.stdin.read()
 
-    result_part1 = solve(input, 2)
+    result_part1 = part1(input)
     print(f"Part 1: {result_part1}")
 
-    result_part2 = solve(input, 1000000)
+    result_part2 = part2(input)
     print(f"Part 2: {result_part2}")
