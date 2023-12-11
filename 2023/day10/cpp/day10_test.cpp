@@ -1,6 +1,6 @@
-#include "day10_part1.hpp"
-#include "day10_part2.hpp"
 #include <iostream>
+
+#include "day10_impl.hpp"
 
 // undefine NDEBUG so asserts aren't disabled even in release mode
 #undef NDEBUG
