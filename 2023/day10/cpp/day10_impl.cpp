@@ -97,22 +97,25 @@ std::pair<Point, Point> find_neighbours(const Grid& grid, Point pos) {
         case 'S': {
             Point first, second;
             bool first_set = false;
-            if (grid[above] == '|' || grid[above] == '7' ||
-                grid[above] == 'F') {
+            if (pos.y > 0 && (grid[above] == '|' || grid[above] == '7' ||
+                              grid[above] == 'F')) {
                 first = above;
                 first_set = true;
             }
-            if (grid[below] == '|' || grid[below] == 'J' ||
-                grid[below] == 'L') {
+            if (pos.y < grid.rows - 1 &&
+                (grid[below] == '|' || grid[below] == 'J' ||
+                 grid[below] == 'L')) {
                 (first_set ? second : first) = below;
                 first_set = true;
             }
-            if (grid[left] == '-' || grid[left] == 'L' || grid[left] == 'F') {
+            if (pos.x > 0 &&
+                (grid[left] == '-' || grid[left] == 'L' || grid[left] == 'F')) {
                 (first_set ? second : first) = left;
                 first_set = true;
             }
-            if (grid[right] == '-' || grid[right] == '7' ||
-                grid[right] == 'J') {
+            if (pos.x < grid.columns - 1 &&
+                (grid[right] == '-' || grid[right] == '7' ||
+                 grid[right] == 'J')) {
                 (first_set ? second : first) = right;
             }
             return std::make_pair(first, second);

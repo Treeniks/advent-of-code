@@ -2,7 +2,7 @@ input.txt
 
 # JetBrains
 .idea/
-cmake-build-debug/
+cmake-build*/
 
 # MacOS
 .DS_Store
