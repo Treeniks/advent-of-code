@@ -33,44 +33,45 @@ def get_galaxies(input):
                 result.append((column, row))
     return result
 
-def number_of_empty_rows_between(input, begin, end):
-    if begin > end:
-        tmp = begin
-        begin = end
-        end = tmp
-    result = 0
-    for row in range(begin, end):
-        if no_galaxies(input[row]):
-            result += 1
-    return result
-
-def number_of_empty_columns_between(input, begin, end):
-    if begin > end:
-        tmp = begin
-        begin = end
-        end = tmp
-    result = 0
-    for column in range(begin, end):
-        if no_galaxies(get_column(input, column)):
-            result += 1
+def empty_lines(input):
+    result = []
+    for i in range(0, len(input)):
+        if all(c == '.' for c in input[i]):
+            result.append(i)
     return result
 
 def solve(input, multiplier):
-    galaxies = get_galaxies(input)
+    rows = list(input.strip().splitlines())
+    columns = []
+    for i in range(0, len(rows[0])):
+        column = get_column(rows, i);
+        columns.append(column)
+    galaxies = get_galaxies(rows)
+
+    empty_lines_rows = empty_lines(rows)
+    empty_lines_columns = empty_lines(columns)
 
     distances = []
-
     for ((x1, y1), (x2, y2)) in itertools.combinations(galaxies, 2):
-        num1 = number_of_empty_rows_between(input, y1, y2)
-        num2 = number_of_empty_columns_between(input, x1, x2)
-        distance = abs(x2 - x1) + num2 * (multiplier - 1) + abs(y2 - y1) + num1 * (multiplier - 1)
-        distances.append(distance)
+        # invariant: x1 < x2 and y1 < y2
+        if x1 > x2:
+            tmp = x1
+            x1 = x2
+            x2 = tmp
+        if y1 > y2:
+            tmp = y1
+            y1 = y2
+            y2 = tmp
 
+        num1 = sum(1 if y1 < x and x < y2 else 0 for x in empty_lines_rows)
+        num2 = sum(1 if x1 < y and y < x2 else 0 for y in empty_lines_columns)
+        distance = abs(x2 - x1) + abs(y2 - y1) + num1 * (multiplier - 1) + num2 * (multiplier - 1)
+        distances.append(distance)
     return sum(distances)
 
 if __name__ == "__main__":
-    input = list(sys.stdin.read().strip().splitlines())
-    # input = list(example.strip().splitlines())
+    # input = example
+    input = sys.stdin.read()
 
     result_part1 = solve(input, 2)
     print(f"Part 1: {result_part1}")
