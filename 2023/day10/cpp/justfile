@@ -1,6 +1,13 @@
+build_command := if os_family() == "windows" {
+    "cd build && cmake .. -G 'MinGW Makefiles' && mingw32-make"
+} else {
+    "cd build && cmake .. && make"
+}
+
 build:
     mkdir -p build
-    cd build && cmake .. && make
+    {{build_command}}
+    cp build/compile_commands.json .
 
 run: build
     build/day10
@@ -10,4 +17,4 @@ test: build
 
 clean:
     rm -rf build
-    rm compile_commands.json
+    rm -f compile_commands.json
