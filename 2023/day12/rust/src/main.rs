@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::{fmt::Display, io::Read, thread};
 
 #[derive(Debug, Clone, Copy, PartialOrd, PartialEq)]
 enum Spring {
@@ -26,6 +26,30 @@ impl TryFrom<char> for Spring {
     }
 }
 
+impl Display for Line {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for spring in &self.springs {
+            match spring {
+                Spring::Operational => write!(f, ".")?,
+                Spring::Broken => write!(f, "#")?,
+                Spring::Unknown => write!(f, "?")?,
+            }
+        }
+
+        write!(f, " ")?;
+
+        for (i, record) in self.records.iter().enumerate() {
+            if i == 0 {
+                write!(f, "{}", record)?;
+            } else {
+                write!(f, ",{}", record)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
 fn parse_line(line: &str) -> Line {
     let mut it = line.split_whitespace();
 
@@ -39,48 +63,81 @@ fn parse_line(line: &str) -> Line {
 }
 
 fn check(springs: &[Spring], records: &[usize]) -> bool {
-    let mut groups: Vec<usize> = vec![];
+    let spring_groups: Vec<usize> = springs
+        .split(|spring| *spring == Spring::Operational)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.len())
+        .collect();
 
-    let mut b = false;
-    for s in springs {
-        match (s, b) {
-            (Spring::Broken, true) => {
-                let i = groups.len() - 1;
-                groups[i] += 1;
-            }
-            (Spring::Broken, false) => {
-                groups.push(1);
-                b = true;
-            }
-            _ => b = false,
-        }
-    }
-
-    groups == records
+    spring_groups == records
 }
 
-fn check_until(springs: &[Spring], records: &[usize], until: usize) -> bool {
-    let mut groups: Vec<usize> = vec![];
+fn check_weak(springs: &[Spring], records: &[usize]) -> Option<usize> {
+    let spring_groups: Vec<usize> = springs
+        .split(|spring| *spring == Spring::Operational)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.len())
+        .collect();
 
-    let mut b = false;
-    for s in springs.iter().take(until) {
-        match (s, b) {
-            (Spring::Broken, true) => {
-                let i = groups.len() - 1;
-                groups[i] += 1;
-            }
-            (Spring::Broken, false) => {
-                groups.push(1);
-                b = true;
-            }
-            _ => b = false,
-        }
+    if spring_groups.len() <= records.len() && spring_groups == records[..spring_groups.len()] {
+        Some(spring_groups.len())
+    } else {
+        None
     }
-
-    groups.len() <= records.len() && groups == records[0..groups.len()]
 }
 
 fn combinations(springs: &mut [Spring], records: &[usize]) -> usize {
+    match (&springs, records) {
+        ([], [_]) => return 0,
+        ([Spring::Unknown], []) | ([Spring::Operational], []) => return 1,
+        ([Spring::Broken], []) => return 0,
+        ([Spring::Broken], [1]) => return 1,
+        ([Spring::Unknown], [1]) => return 1,
+        ([_], [_]) => return 0,
+        ([Spring::Unknown, Spring::Unknown], [1]) => return 2,
+        ([Spring::Unknown, Spring::Unknown], [2]) => return 1,
+        ([Spring::Unknown, Spring::Unknown], [_]) => return 0,
+
+        ([Spring::Unknown, Spring::Broken], [1]) | ([Spring::Broken, Spring::Unknown], [1]) => {
+            return 1
+        }
+        ([Spring::Unknown, Spring::Broken], [2]) | ([Spring::Broken, Spring::Unknown], [2]) => {
+            return 1
+        }
+        ([Spring::Unknown, Spring::Broken], [_]) | ([Spring::Broken, Spring::Unknown], [_]) => {
+            return 0
+        }
+
+        ([Spring::Broken, Spring::Broken], [2]) => return 1,
+        ([Spring::Broken, Spring::Broken], [_]) => return 0,
+
+        ([Spring::Unknown, Spring::Operational], [1])
+        | ([Spring::Operational, Spring::Unknown], [1]) => return 1,
+        ([Spring::Unknown, Spring::Operational], [_])
+        | ([Spring::Operational, Spring::Unknown], [_]) => return 0,
+        ([Spring::Unknown, Spring::Operational], [])
+        | ([Spring::Operational, Spring::Unknown], []) => return 1,
+
+        ([Spring::Operational, Spring::Operational], []) => return 1,
+        ([Spring::Operational, Spring::Operational], [_]) => return 0,
+
+        ([Spring::Broken, Spring::Operational], [1])
+        | ([Spring::Operational, Spring::Broken], [1]) => return 1,
+        ([Spring::Broken, Spring::Operational], [_])
+        | ([Spring::Operational, Spring::Broken], [_]) => return 0,
+        ([Spring::Broken, Spring::Operational], [])
+        | ([Spring::Operational, Spring::Broken], []) => return 0,
+
+        (_, []) => {
+            if springs.iter().all(|spring| *spring != Spring::Broken) {
+                return 1;
+            } else {
+                return 0;
+            }
+        }
+        _ => {}
+    }
+
     let first_unknown = match springs
         .iter()
         .enumerate()
@@ -96,24 +153,28 @@ fn combinations(springs: &mut [Spring], records: &[usize]) -> usize {
         }
     };
 
-    if let Some((i, _)) = springs[..first_unknown]
+    let r1 = if !(springs[..first_unknown]
         .iter()
-        .enumerate()
-        .filter(|&(_, &s)| s == Spring::Operational)
-        .last()
+        .all(|spring| *spring == Spring::Broken)
+        && records[0] < first_unknown)
     {
-        if !check_until(springs, records, i) {
-            return 0;
-        }
+        springs[first_unknown] = Spring::Broken;
+        let r1 = combinations(springs, records);
+
+        springs[first_unknown] = Spring::Unknown;
+
+        r1
+    } else {
+        0
     };
 
-    springs[first_unknown] = Spring::Broken;
-    let r1 = combinations(springs, records);
-    springs[first_unknown] = Spring::Operational;
-    let r2 = combinations(springs, records);
-    springs[first_unknown] = Spring::Unknown;
-
-    return r1 + r2;
+    match check_weak(&springs[..first_unknown], records) {
+        Some(i) => {
+            let r2 = combinations(&mut springs[first_unknown + 1..], &records[i..]);
+            r1 + r2
+        }
+        None => r1,
+    }
 }
 
 fn extend_part2(springs: &mut Vec<Spring>, records: &mut Vec<usize>) {
@@ -141,20 +202,51 @@ fn part1(input: &str) -> usize {
     });
 }
 
+const THREAD_COUNT: usize = 16;
+
 fn part2(input: &str) -> usize {
     let mut lines: Vec<Line> = input.trim().lines().map(parse_line).collect();
     lines
         .iter_mut()
         .for_each(|l| extend_part2(&mut l.springs, &mut l.records));
-    return lines.iter_mut().fold(0, |acc, line| {
-        acc + combinations(&mut line.springs, &line.records)
-    });
+
+    let mut ls = lines.chunks_exact(lines.len() / THREAD_COUNT);
+    thread::scope(move |s| {
+        let mut threads = vec![];
+
+        for _ in 0..THREAD_COUNT {
+            let mut lines = Vec::from(ls.next().unwrap());
+            threads.push(s.spawn(move || {
+                lines.iter_mut().fold(0, |acc, line| {
+                    println!("finding combinations for line {}", line);
+                    acc + combinations(&mut line.springs, &line.records)
+                })
+            }))
+        }
+
+        let r = Vec::from(ls.remainder()).iter_mut().fold(0, |acc, line| {
+            println!("finding combinations for line {}", line);
+            acc + combinations(&mut line.springs, &line.records)
+        });
+
+        r + threads
+            .into_iter()
+            .fold(0, |acc, t| acc + t.join().unwrap())
+    })
+    // let lines2 = lines.next().unwrap();
+    // let t2 = thread::spawn(|| {
+    //     lines2.iter_mut().fold(0, |acc, line| {
+    //         acc + combinations(&mut line.springs, &line.records)
+    //     })
+    // });
+    // return lines.iter_mut().fold(0, |acc, line| {
+    //     acc + combinations(&mut line.springs, &line.records)
+    // });
 }
 
 fn main() -> Result<(), std::io::Error> {
     let mut input = String::new();
     let _ = std::io::stdin().read_to_string(&mut input)?;
-    // let input = "?###???????? 3,2,1";
 
     println!("Part 1: {}", part1(&input));
     println!("Part 2: {}", part2(&input));
@@ -185,11 +277,11 @@ mod tests {
     #[test]
     fn test_part2() {
         let input = "???.### 1,1,3
-    .??..??...?##. 1,1,3
-    ?#?#?#?#?#?#?#? 1,3,1,6
-    ????.#...#... 4,1,1
-    ????.######..#####. 1,6,5
-    ?###???????? 3,2,1
+.??..??...?##. 1,1,3
+?#?#?#?#?#?#?#? 1,3,1,6
+????.#...#... 4,1,1
+????.######..#####. 1,6,5
+?###???????? 3,2,1
     ";
 
         let expected = 525152;
