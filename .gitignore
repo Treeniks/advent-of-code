@@ -4,6 +4,9 @@ input.txt
 .idea/
 cmake-build*/
 
+# Sublime
+*.sublime-workspace
+
 # MacOS
 .DS_Store
 
