@@ -95,61 +95,9 @@ fn combinations(
     if let Some(r) = cache.get(&(springs.to_vec(), records.to_vec())) {
         return *r;
     }
-    if springs.iter().all(|spring| *spring == Spring::Unknown)
-        && records.len() == 1
-        && records[0] < springs.len()
-    {
-        return springs.len() - records[0] + 1;
-    }
-    match (&springs, records) {
-        ([], [_]) => return 0,
-        ([Spring::Unknown], []) | ([Spring::Operational], []) => return 1,
-        ([Spring::Broken], []) => return 0,
-        ([Spring::Broken], [1]) => return 1,
-        ([Spring::Unknown], [1]) => return 1,
-        ([_], [_]) => return 0,
-        ([Spring::Unknown, Spring::Unknown], [1]) => return 2,
-        ([Spring::Unknown, Spring::Unknown], [2]) => return 1,
-        ([Spring::Unknown, Spring::Unknown], [_]) => return 0,
 
-        ([Spring::Unknown, Spring::Broken], [1]) | ([Spring::Broken, Spring::Unknown], [1]) => {
-            return 1
-        }
-        ([Spring::Unknown, Spring::Broken], [2]) | ([Spring::Broken, Spring::Unknown], [2]) => {
-            return 1
-        }
-        ([Spring::Unknown, Spring::Broken], [_]) | ([Spring::Broken, Spring::Unknown], [_]) => {
-            return 0
-        }
-
-        ([Spring::Broken, Spring::Broken], [2]) => return 1,
-        ([Spring::Broken, Spring::Broken], [_]) => return 0,
-
-        ([Spring::Unknown, Spring::Operational], [1])
-        | ([Spring::Operational, Spring::Unknown], [1]) => return 1,
-        ([Spring::Unknown, Spring::Operational], [_])
-        | ([Spring::Operational, Spring::Unknown], [_]) => return 0,
-        ([Spring::Unknown, Spring::Operational], [])
-        | ([Spring::Operational, Spring::Unknown], []) => return 1,
-
-        ([Spring::Operational, Spring::Operational], []) => return 1,
-        ([Spring::Operational, Spring::Operational], [_]) => return 0,
-
-        ([Spring::Broken, Spring::Operational], [1])
-        | ([Spring::Operational, Spring::Broken], [1]) => return 1,
-        ([Spring::Broken, Spring::Operational], [_])
-        | ([Spring::Operational, Spring::Broken], [_]) => return 0,
-        ([Spring::Broken, Spring::Operational], [])
-        | ([Spring::Operational, Spring::Broken], []) => return 0,
-
-        (_, []) => {
-            if springs.iter().all(|spring| *spring != Spring::Broken) {
-                return 1;
-            } else {
-                return 0;
-            }
-        }
-        _ => {}
+    if records.is_empty() {
+        return springs.iter().all(|&spring| spring != Spring::Broken) as usize;
     }
 
     let first_unknown = match springs
@@ -158,13 +106,7 @@ fn combinations(
         .find(|&(_, &spring)| spring == Spring::Unknown)
     {
         Some((i, _)) => i,
-        None => {
-            if check(springs, records) {
-                return 1;
-            } else {
-                return 0;
-            }
-        }
+        None => return check(springs, records) as usize,
     };
 
     let r1 = if !(springs[..first_unknown]
@@ -177,13 +119,7 @@ fn combinations(
 
         springs[first_unknown] = Spring::Unknown;
 
-        cache.insert(
-            (
-                springs.iter().copied().collect(),
-                records.iter().copied().collect(),
-            ),
-            r1,
-        );
+        cache.insert((springs.to_vec(), records.to_vec()), r1);
         r1
     } else {
         0
@@ -192,44 +128,24 @@ fn combinations(
     match check_weak(&springs[..first_unknown], records) {
         Some(i) => {
             let r2 = combinations(&mut springs[first_unknown + 1..], &records[i..], cache);
-            cache.insert(
-                (
-                    springs.iter().copied().collect(),
-                    records.iter().copied().collect(),
-                ),
-                r1 + r2,
-            );
+            cache.insert((springs.to_vec(), records.to_vec()), r1 + r2);
             r1 + r2
         }
         None => {
-            cache.insert(
-                (
-                    springs.iter().copied().collect(),
-                    records.iter().copied().collect(),
-                ),
-                r1,
-            );
+            cache.insert((springs.to_vec(), records.to_vec()), r1);
             r1
         }
     }
 }
 
-fn extend_part2(springs: &mut Vec<Spring>, records: &mut Vec<usize>) {
-    let clone = springs.clone();
-    springs.push(Spring::Unknown);
-    springs.extend(clone.clone());
-    springs.push(Spring::Unknown);
-    springs.extend(clone.clone());
-    springs.push(Spring::Unknown);
-    springs.extend(clone.clone());
-    springs.push(Spring::Unknown);
-    springs.extend(clone);
-
-    let clone = records.clone();
-    records.extend(clone.clone());
-    records.extend(clone.clone());
-    records.extend(clone.clone());
-    records.extend(clone);
+fn extend(springs: &mut Vec<Spring>, records: &mut Vec<usize>, n: usize) {
+    let clone_springs = springs.clone();
+    let clone_records = records.clone();
+    for _ in 0..n - 1 {
+        springs.push(Spring::Unknown);
+        springs.extend(clone_springs.clone());
+        records.extend(clone_records.clone());
+    }
 }
 
 fn part1(input: &str) -> usize {
@@ -244,11 +160,10 @@ fn part2(input: &str) -> usize {
     let mut lines: Vec<Line> = input.trim().lines().map(parse_line).collect();
     lines
         .iter_mut()
-        .for_each(|l| extend_part2(&mut l.springs, &mut l.records));
+        .for_each(|l| extend(&mut l.springs, &mut l.records, 5));
 
     let mut cache = HashMap::new();
     return lines.iter_mut().fold(0, |acc, line| {
-        println!("finding combinations for line {}", line);
         acc + combinations(&mut line.springs, &line.records, &mut cache)
     });
 }
