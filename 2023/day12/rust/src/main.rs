@@ -150,6 +150,7 @@ fn extend(springs: &mut Vec<Spring>, records: &mut Vec<usize>, n: usize) {
 
 fn part1(input: &str) -> usize {
     let mut lines: Vec<Line> = input.trim().lines().map(parse_line).collect();
+
     return lines.iter_mut().fold(0, |acc, line| {
         let mut cache = HashMap::new();
         acc + combinations(&mut line.springs, &line.records, &mut cache)
@@ -162,8 +163,8 @@ fn part2(input: &str) -> usize {
         .iter_mut()
         .for_each(|l| extend(&mut l.springs, &mut l.records, 5));
 
-    let mut cache = HashMap::new();
     return lines.iter_mut().fold(0, |acc, line| {
+        let mut cache = HashMap::new();
         acc + combinations(&mut line.springs, &line.records, &mut cache)
     });
 }
