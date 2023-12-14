@@ -9,13 +9,13 @@ let ( << ) f g x = f (g x)
 (*   | (0, _) -> [] *)
 (*   | (n, x::xs) -> x :: take (n - 1) xs *)
 
-let contains a = exists (( == ) a)
+let contains a = exists (( = ) a)
 
 let points len =
   let rec aux len acc =
     match len with 0 -> acc | l -> aux (l - 1) (acc * 2)
   in
-  if len == 0 then 0 else aux (len - 1) 1
+  if len = 0 then 0 else aux (len - 1) 1
 
 let parse_numbers (l : string) =
   String.split_on_char ' ' l

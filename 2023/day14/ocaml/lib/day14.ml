@@ -1,7 +1,7 @@
 let ( >> ) f g x = g (f x)
 
 let count_char string char =
-  String.to_seq string |> Seq.filter (( == ) char) |> Seq.length
+  String.to_seq string |> Seq.filter (( = ) char) |> Seq.length
 
 let move_left =
   let aux row =
