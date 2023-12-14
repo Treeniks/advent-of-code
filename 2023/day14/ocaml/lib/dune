@@ -1,0 +1,6 @@
+(library
+ (name day14)
+ (inline_tests)
+ (preprocess
+  (pps ppx_inline_test))
+ (flags :standard -warn-error -A))
