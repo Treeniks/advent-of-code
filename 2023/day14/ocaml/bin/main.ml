@@ -1,3 +1,5 @@
+open Day14
+
 let read_until_eof () =
   let rec aux acc =
     try
@@ -11,11 +13,11 @@ let () =
   let input = read_until_eof () in
 
   print_string "Part 1: ";
-  input |> Day14.part1 |> print_int;
+  input |> part1 |> print_int;
   print_newline ();
 
   print_string "Part 2: ";
-  input |> Day14.part2 |> print_int;
+  input |> part2 |> print_int;
   print_newline ();
 
   ()
