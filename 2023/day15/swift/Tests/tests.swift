@@ -14,5 +14,6 @@ final class Day15Tests: XCTestCase {
         """
 
         XCTAssertEqual(part1(input: example), 1320)
+        XCTAssertEqual(part2(input: example), 145)
     }
 }

@@ -1,10 +1,10 @@
-let example = """
-rn=1,cm-,qp=3,cm=2,qp-,pc=4,ot=9,ab=5,pc-,pc=6,ot=7
-"""
-
 let input = readLine()!
 
-print(part1(input: input))
+let r1 = part1(input: input)
+let r2 = part2(input: input)
+
+print("Part 1: \(r1)")
+print("Part 2: \(r2)")
 
 extension String {
     func trim() -> String {
@@ -21,18 +21,64 @@ extension String {
     }
 }
 
+struct BoxEntry {
+    let label: String
+    let focalLength: UInt
+}
+
+func hash<T: Collection>(_ string: T) -> UInt8 where T.Element == Character {
+    var hash: UInt8 = 0
+    for c in string {
+        hash = hash.addingReportingOverflow(c.asciiValue!).partialValue
+        hash = hash.multipliedReportingOverflow(by: 17).partialValue
+    }
+    return hash
+}
+
 func part1(input: String) -> UInt {
     let sequence = input.trim().split(separator: ",")
 
     var result: UInt = 0
     for s in sequence {
-        var hash: UInt = 0
-        for c in s {
-            hash += UInt(c.asciiValue!)
-            hash *= 17
-            hash %= 256
+        result += UInt(hash(s))
+    }
+
+    return result
+}
+
+func part2(input: String) -> UInt {
+    let sequence = input.trim().split(separator: ",")
+
+    var map: [[BoxEntry]] = Array(repeating: [], count: 256)
+
+    for s in sequence {
+        if s.contains("-") {
+            let label = s.dropLast()
+            let index = Int(hash(label))
+            if let j = map[index].firstIndex(where: { entry in entry.label == label }) {
+                map[index].remove(at: j)
+            }
+        } else {
+            let tmp = s.split(separator: "=", maxSplits: 1)
+            let label = String(tmp[0])
+            let val = UInt(tmp[1])!
+            let index = Int(hash(label))
+
+            if let j = map[index].firstIndex(where: { entry in entry.label == label }) {
+                map[index].remove(at: j)
+                map[index].insert(BoxEntry(label: label, focalLength: val), at: j)
+            } else {
+                map[index].append(BoxEntry(label: label, focalLength: val))
+            }
         }
-        result += hash
+    }
+
+    var result: UInt = 0
+
+    for (i, box) in map.enumerated() {
+        for (j, entry) in box.enumerated() {
+            result += (UInt(i) + 1) * (UInt(j) + 1) * entry.focalLength
+        }
     }
 
     return result
