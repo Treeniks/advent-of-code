@@ -21,7 +21,8 @@ proc `+=`(a: var tuple[x: int, y: int], b: tuple[x: int, y: int]) =
 func inbound[T](index: tuple[x: int, y: int], grid: grid[T]): bool =
   index.y >= 0 and index.y < grid.len and index.x >= 0 and index.x < grid[0].len
 
-proc castRay(grid: grid[char], start: tuple[x: int, y: int], direction: tuple[x: int, y: int], hits: var grid[seq[tuple[x: int, y: int]]]) =
+proc castRay(grid: grid[char], start: tuple[x: int, y: int], direction: tuple[
+    x: int, y: int], hits: var grid[seq[tuple[x: int, y: int]]]) =
   # cycle detection
   if not (start.inbound grid) or (direction in hits[start]): return
 
@@ -60,8 +61,8 @@ proc castRay(grid: grid[char], start: tuple[x: int, y: int], direction: tuple[x:
 func parseInput(input: string): grid[char] =
   input.strip().splitLines().map(proc(s: string): seq[char] = s.items().toSeq())
 
-proc part1*(input: string): int =
-  let grid = parseInput(input)
+func countEnergized(grid: grid[char], start: tuple[x: int, y: int],
+    direction: tuple[x: int, y: int]): int =
   var hits: grid[seq[tuple[x: int, y: int]]] = @[]
   for line in grid:
     var tmp: seq[seq[tuple[x: int, y: int]]] = @[]
@@ -69,15 +70,33 @@ proc part1*(input: string): int =
       tmp.add(@[])
     hits.add(tmp)
 
-  castRay(grid, (0, 0), (1, 0), hits)
+  castRay(grid, start, direction, hits)
   for line in hits:
     for b in line:
       if b.len > 0: result += 1
 
-func part2*(input: string): int = 0
+func part1*(input: string): int =
+  let grid = parseInput(input)
+  countEnergized(grid, (0, 0), (1, 0))
+
+func part2*(input: string): int =
+  let grid = parseInput(input)
+  var values: seq[int] = @[]
+  let max_y = high grid
+  let max_x = high grid[0]
+
+  for y in 0..max_y:
+    values.add(countEnergized(grid, (0, y), (1, 0)))
+    values.add(countEnergized(grid, (max_x, y), (-1, 0)))
+
+  for x in 0..max_x:
+    values.add(countEnergized(grid, (x, 0), (0, 1)))
+    values.add(countEnergized(grid, (x, max_y), (0, -1)))
+
+  values.max
 
 when isMainModule:
   let input = readAll(stdin)
 
   echo "Part 1: " & $part1(input)
-  # echo "Part 2: " & $part2(input)
+  echo "Part 2: " & $part2(input)
