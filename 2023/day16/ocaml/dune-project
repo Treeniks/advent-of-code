@@ -1,0 +1,16 @@
+(lang dune 3.12)
+
+(name day16)
+
+(generate_opam_files true)
+
+(source
+ (github Treeniks/advent-of-code))
+
+(authors "Thomas Lindae")
+
+(package
+ (name day16)
+ (depends ocaml dune))
+
+; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
