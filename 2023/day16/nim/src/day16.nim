@@ -82,16 +82,18 @@ func part1*(input: string): int =
 func part2*(input: string): int =
   let grid = parseInput(input)
   var values: seq[int] = @[]
-  let max_y = high grid
-  let max_x = high grid[0]
+  let y_low = low grid
+  let y_high = high grid
+  let x_low = low grid[0]
+  let x_high = high grid[0]
 
-  for y in 0..max_y:
-    values.add(countEnergized(grid, (0, y), (1, 0)))
-    values.add(countEnergized(grid, (max_x, y), (-1, 0)))
+  for y in countup(y_low, y_high):
+    values.add(countEnergized(grid, (x_low, y), (1, 0)))
+    values.add(countEnergized(grid, (x_high, y), (-1, 0)))
 
-  for x in 0..max_x:
-    values.add(countEnergized(grid, (x, 0), (0, 1)))
-    values.add(countEnergized(grid, (x, max_y), (0, -1)))
+  for x in countup(x_low, x_high):
+    values.add(countEnergized(grid, (x, y_low), (0, 1)))
+    values.add(countEnergized(grid, (x, y_high), (0, -1)))
 
   values.max
 
