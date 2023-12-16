@@ -9,12 +9,6 @@
 
 (authors "Thomas Lindae")
 
-; (maintainers "Maintainer Name")
-
-(license LICENSE)
-
-(documentation https://url/to/documentation)
-
 (package
  (name day06)
  (depends ocaml dune))
