@@ -124,6 +124,7 @@ struct State {
     x: usize,
     y: usize,
     cost: usize,
+    heuristic: usize,
     dir: Direction,
 }
 
@@ -133,12 +134,14 @@ impl Ord for State {
         // In case of a tie we compare positions - this step is necessary
         // to make implementations of `PartialEq` and `Ord` consistent.
         // See also https://doc.rust-lang.org/std/collections/binary_heap/index.html.
-        other.cost.cmp(&self.cost).then_with(|| {
-            self.x
-                .cmp(&other.x)
-                .then_with(|| self.y.cmp(&other.y))
-                .then_with(|| self.dir.cmp(&other.dir))
-        })
+        (other.cost + other.heuristic)
+            .cmp(&(self.cost + self.heuristic))
+            .then_with(|| {
+                self.x
+                    .cmp(&other.x)
+                    .then_with(|| self.y.cmp(&other.y))
+                    .then_with(|| self.dir.cmp(&other.dir))
+            })
     }
 }
 
@@ -151,7 +154,7 @@ impl PartialOrd for State {
 fn part1(input: &str) -> usize {
     let grid = Grid::from_input(input);
 
-    // Djikstra
+    // A*
     // basically copied from https://doc.rust-lang.org/std/collections/binary_heap/index.html
     // with some modifications to fit the context
     let mut heap = BinaryHeap::new();
@@ -176,6 +179,7 @@ fn part1(input: &str) -> usize {
             x: i,
             y: 0,
             cost,
+            heuristic: grid.columns - i + grid.rows,
             dir: Direction::HORIZONTAL,
         });
 
@@ -187,11 +191,19 @@ fn part1(input: &str) -> usize {
             x: 0,
             y: i,
             cost,
+            heuristic: grid.rows - i + grid.columns,
             dir: Direction::VERTICAL,
         });
     }
 
-    while let Some(State { x, y, cost, dir }) = heap.pop() {
+    while let Some(State {
+        x,
+        y,
+        cost,
+        heuristic: _,
+        dir,
+    }) = heap.pop()
+    {
         if (x, y) == (grid.columns - 1, grid.rows - 1) {
             return cost;
         }
@@ -224,6 +236,7 @@ fn part1(input: &str) -> usize {
                             x,
                             y: new_y,
                             cost: new_cost,
+                            heuristic: grid.rows - new_y + grid.columns,
                             dir: Direction::VERTICAL,
                         });
                     }
@@ -238,6 +251,7 @@ fn part1(input: &str) -> usize {
                             x,
                             y: new_y,
                             cost: new_cost,
+                            heuristic: grid.rows - new_y + grid.columns,
                             dir: Direction::VERTICAL,
                         });
                     }
@@ -255,6 +269,7 @@ fn part1(input: &str) -> usize {
                             x: new_x,
                             y,
                             cost: new_cost,
+                            heuristic: grid.columns - new_x + grid.rows,
                             dir: Direction::HORIZONTAL,
                         });
                     }
@@ -269,6 +284,7 @@ fn part1(input: &str) -> usize {
                             x: new_x,
                             y,
                             cost: new_cost,
+                            heuristic: grid.columns - new_x + grid.rows,
                             dir: Direction::HORIZONTAL,
                         });
                     }
