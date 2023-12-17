@@ -39,28 +39,28 @@ impl Grid {
         }
     }
 
-    fn checked_add_vertical(&self, lhs: usize, rhs: usize) -> Option<usize> {
-        if let Some(r) = lhs.checked_add(rhs) {
-            if r < self.rows {
-                return Some(r);
-            }
-        }
-        None
-    }
-
-    fn checked_add_horizontal(&self, lhs: usize, rhs: usize) -> Option<usize> {
-        if let Some(r) = lhs.checked_add(rhs) {
-            if r < self.columns {
-                return Some(r);
-            }
-        }
-        None
-    }
-
     fn lines(&self) -> GridIterator {
         GridIterator {
             grid: self,
             current_row: 0,
+        }
+    }
+
+    #[allow(unused)]
+    fn get(&self, (x, y): (usize, usize)) -> Option<usize> {
+        if x < self.columns && y < self.rows {
+            Some(self.grid[y * self.columns + x])
+        } else {
+            None
+        }
+    }
+
+    #[allow(unused)]
+    fn get_mut(&mut self, (x, y): (usize, usize)) -> Option<&mut usize> {
+        if x < self.columns && y < self.rows {
+            Some(&mut self.grid[y * self.columns + x])
+        } else {
+            None
         }
     }
 }
@@ -168,34 +168,112 @@ fn a_star(grid: &Grid, min: usize, max: usize) -> usize {
         columns: grid.columns,
     };
 
-    for i in min..=max {
-        if let Some(x) = grid.checked_add_horizontal(0, i) {
-            let mut cost = 0;
-            for j in 1..=i {
-                cost += grid[0][j]
-            }
-            heap.push(State {
-                x,
-                y: 0,
-                cost,
-                heuristic: grid.columns - i + grid.rows,
-                dir: Direction::HORIZONTAL,
-            });
-        }
+    let add_to_heap = |heap: &mut BinaryHeap<State>,
+                       dist: &mut Grid,
+                       x: usize,
+                       y: usize,
+                       diff: usize,
+                       cost: usize,
+                       dir: Direction| match dir {
+        Direction::VERTICAL => {
+            // underflow check
+            if y >= diff {
+                let mut new_cost = cost;
+                for j in 1..=diff {
+                    new_cost += grid[y - j][x];
+                }
 
-        if let Some(y) = grid.checked_add_vertical(0, i) {
-            let mut cost = 0;
-            for j in 1..=i {
-                cost += grid[j][0]
+                if new_cost < dist[y - diff][x] {
+                    dist[y - diff][x] = new_cost;
+                    heap.push(State {
+                        x,
+                        y: y - diff,
+                        cost: new_cost,
+                        heuristic: grid.columns - x + grid.rows - (y - diff),
+                        dir: Direction::VERTICAL,
+                    });
+                }
             }
-            heap.push(State {
-                x: 0,
-                y,
-                cost,
-                heuristic: grid.rows - i + grid.columns,
-                dir: Direction::VERTICAL,
-            });
+
+            // in bounds check
+            if y + diff < grid.rows {
+                let mut new_cost = cost;
+                for j in 1..=diff {
+                    new_cost += grid[y + j][x]
+                }
+
+                if new_cost < dist[y + diff][x] {
+                    dist[y + diff][x] = new_cost;
+                    heap.push(State {
+                        x,
+                        y: y + diff,
+                        cost: new_cost,
+                        heuristic: grid.columns - x + grid.rows - (y + diff),
+                        dir: Direction::VERTICAL,
+                    });
+                }
+            }
         }
+        Direction::HORIZONTAL => {
+            // underflow check
+            if x >= diff {
+                let mut new_cost = cost;
+                for j in 1..=diff {
+                    new_cost += grid[y][x - j];
+                }
+
+                if new_cost < dist[y][x - diff] {
+                    dist[y][x - diff] = new_cost;
+                    heap.push(State {
+                        x: x - diff,
+                        y,
+                        cost: new_cost,
+                        heuristic: grid.columns - (x - diff) + grid.rows - y,
+                        dir: Direction::HORIZONTAL,
+                    });
+                }
+            }
+
+            // in bounds check
+            if x + diff < grid.columns {
+                let mut new_cost = cost;
+                for j in 1..=diff {
+                    new_cost += grid[y][x + j];
+                }
+
+                if new_cost < dist[y][x + diff] {
+                    dist[y][x + diff] = new_cost;
+                    heap.push(State {
+                        x: x + diff,
+                        y,
+                        cost: new_cost,
+                        heuristic: grid.columns - (x + diff) + grid.rows - y,
+                        dir: Direction::HORIZONTAL,
+                    });
+                }
+            }
+        }
+    };
+
+    for i in min..=max {
+        add_to_heap(
+            &mut heap,
+            &mut dist_horizontal,
+            0,
+            0,
+            i,
+            0,
+            Direction::HORIZONTAL,
+        );
+        add_to_heap(
+            &mut heap,
+            &mut dist_vertical,
+            0,
+            0,
+            i,
+            0,
+            Direction::VERTICAL,
+        );
     }
 
     while let Some(State {
@@ -213,84 +291,28 @@ fn a_star(grid: &Grid, min: usize, max: usize) -> usize {
         match dir {
             Direction::HORIZONTAL => {
                 for i in min..=max {
-                    if let Some(new_y) = y.checked_sub(i) {
-                        let mut new_cost = cost;
-                        for j in 1..=i {
-                            new_cost += grid[y - j][x]
-                        }
-
-                        if new_cost < dist_vertical[new_y][x] {
-                            dist_vertical[new_y][x] = new_cost;
-
-                            heap.push(State {
-                                x,
-                                y: new_y,
-                                cost: new_cost,
-                                heuristic: grid.rows - new_y + grid.columns,
-                                dir: Direction::VERTICAL,
-                            });
-                        }
-                    }
-
-                    if let Some(new_y) = grid.checked_add_vertical(y, i) {
-                        let mut new_cost = cost;
-                        for j in 1..=i {
-                            new_cost += grid[y + j][x]
-                        }
-
-                        if new_cost < dist_vertical[new_y][x] {
-                            dist_vertical[new_y][x] = new_cost;
-
-                            heap.push(State {
-                                x,
-                                y: new_y,
-                                cost: new_cost,
-                                heuristic: grid.rows - new_y + grid.columns,
-                                dir: Direction::VERTICAL,
-                            });
-                        }
-                    }
+                    add_to_heap(
+                        &mut heap,
+                        &mut dist_vertical,
+                        x,
+                        y,
+                        i,
+                        cost,
+                        Direction::VERTICAL,
+                    );
                 }
             }
             Direction::VERTICAL => {
                 for i in min..=max {
-                    if let Some(new_x) = x.checked_sub(i) {
-                        let mut new_cost = cost;
-                        for j in 1..=i {
-                            new_cost += grid[y][x - j]
-                        }
-
-                        if new_cost < dist_horizontal[y][new_x] {
-                            dist_horizontal[y][new_x] = new_cost;
-
-                            heap.push(State {
-                                x: new_x,
-                                y,
-                                cost: new_cost,
-                                heuristic: grid.columns - new_x + grid.rows,
-                                dir: Direction::HORIZONTAL,
-                            });
-                        }
-                    }
-
-                    if let Some(new_x) = grid.checked_add_horizontal(x, i) {
-                        let mut new_cost = cost;
-                        for j in 1..=i {
-                            new_cost += grid[y][x + j]
-                        }
-
-                        if new_cost < dist_horizontal[y][new_x] {
-                            dist_horizontal[y][new_x] = new_cost;
-
-                            heap.push(State {
-                                x: new_x,
-                                y,
-                                cost: new_cost,
-                                heuristic: grid.columns - new_x + grid.rows,
-                                dir: Direction::HORIZONTAL,
-                            });
-                        }
-                    }
+                    add_to_heap(
+                        &mut heap,
+                        &mut dist_horizontal,
+                        x,
+                        y,
+                        i,
+                        cost,
+                        Direction::HORIZONTAL,
+                    );
                 }
             }
         }
