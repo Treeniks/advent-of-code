@@ -209,21 +209,6 @@ fn part1(input: &str) -> usize {
         }
 
         match dir {
-            Direction::VERTICAL => {
-                if cost > dist_vertical[y][x] {
-                    continue;
-                }
-                dist_vertical[y][x] = cost;
-            }
-            Direction::HORIZONTAL => {
-                if cost > dist_horizontal[y][x] {
-                    continue;
-                }
-                dist_horizontal[y][x] = cost;
-            }
-        }
-
-        match dir {
             Direction::HORIZONTAL => {
                 for i in 1..=3 {
                     if let Some(new_y) = y.checked_sub(i) {
@@ -232,13 +217,17 @@ fn part1(input: &str) -> usize {
                             new_cost += grid[y - j][x]
                         }
 
-                        heap.push(State {
-                            x,
-                            y: new_y,
-                            cost: new_cost,
-                            heuristic: grid.rows - new_y + grid.columns,
-                            dir: Direction::VERTICAL,
-                        });
+                        if new_cost < dist_vertical[new_y][x] {
+                            dist_vertical[new_y][x] = new_cost;
+
+                            heap.push(State {
+                                x,
+                                y: new_y,
+                                cost: new_cost,
+                                heuristic: grid.rows - new_y + grid.columns,
+                                dir: Direction::VERTICAL,
+                            });
+                        }
                     }
 
                     if let Some(new_y) = grid.checked_add_vertical(y, i) {
@@ -247,13 +236,17 @@ fn part1(input: &str) -> usize {
                             new_cost += grid[y + j][x]
                         }
 
-                        heap.push(State {
-                            x,
-                            y: new_y,
-                            cost: new_cost,
-                            heuristic: grid.rows - new_y + grid.columns,
-                            dir: Direction::VERTICAL,
-                        });
+                        if new_cost < dist_vertical[new_y][x] {
+                            dist_vertical[new_y][x] = new_cost;
+
+                            heap.push(State {
+                                x,
+                                y: new_y,
+                                cost: new_cost,
+                                heuristic: grid.rows - new_y + grid.columns,
+                                dir: Direction::VERTICAL,
+                            });
+                        }
                     }
                 }
             }
@@ -265,13 +258,17 @@ fn part1(input: &str) -> usize {
                             new_cost += grid[y][x - j]
                         }
 
-                        heap.push(State {
-                            x: new_x,
-                            y,
-                            cost: new_cost,
-                            heuristic: grid.columns - new_x + grid.rows,
-                            dir: Direction::HORIZONTAL,
-                        });
+                        if new_cost < dist_horizontal[y][new_x] {
+                            dist_horizontal[y][new_x] = new_cost;
+
+                            heap.push(State {
+                                x: new_x,
+                                y,
+                                cost: new_cost,
+                                heuristic: grid.columns - new_x + grid.rows,
+                                dir: Direction::HORIZONTAL,
+                            });
+                        }
                     }
 
                     if let Some(new_x) = grid.checked_add_horizontal(x, i) {
@@ -280,13 +277,17 @@ fn part1(input: &str) -> usize {
                             new_cost += grid[y][x + j]
                         }
 
-                        heap.push(State {
-                            x: new_x,
-                            y,
-                            cost: new_cost,
-                            heuristic: grid.columns - new_x + grid.rows,
-                            dir: Direction::HORIZONTAL,
-                        });
+                        if new_cost < dist_horizontal[y][new_x] {
+                            dist_horizontal[y][new_x] = new_cost;
+
+                            heap.push(State {
+                                x: new_x,
+                                y,
+                                cost: new_cost,
+                                heuristic: grid.columns - new_x + grid.rows,
+                                dir: Direction::HORIZONTAL,
+                            });
+                        }
                     }
                 }
             }
