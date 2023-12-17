@@ -1,9 +1,8 @@
 use std::collections::BinaryHeap;
-use std::fmt::Debug;
 use std::io::Read;
 use std::ops::{Index, IndexMut};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct Grid {
     grid: Vec<usize>,
     rows: usize,
@@ -39,6 +38,7 @@ impl Grid {
         }
     }
 
+    #[allow(unused)]
     fn lines(&self) -> GridIterator {
         GridIterator {
             grid: self,
@@ -84,21 +84,6 @@ impl<'a> Iterator for GridIterator<'a> {
     }
 }
 
-impl Debug for Grid {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut b = false;
-        for line in self.lines() {
-            if b {
-                write!(f, "\n")?;
-            }
-            write!(f, "{:?}", line)?;
-            b = true;
-        }
-
-        Ok(())
-    }
-}
-
 impl Index<usize> for Grid {
     type Output = [usize];
 
@@ -124,7 +109,6 @@ struct State {
     x: usize,
     y: usize,
     cost: usize,
-    heuristic: usize,
     dir: Direction,
 }
 
@@ -134,14 +118,12 @@ impl Ord for State {
         // In case of a tie we compare positions - this step is necessary
         // to make implementations of `PartialEq` and `Ord` consistent.
         // See also https://doc.rust-lang.org/std/collections/binary_heap/index.html.
-        (other.cost + other.heuristic)
-            .cmp(&(self.cost + self.heuristic))
-            .then_with(|| {
-                self.x
-                    .cmp(&other.x)
-                    .then_with(|| self.y.cmp(&other.y))
-                    .then_with(|| self.dir.cmp(&other.dir))
-            })
+        other.cost.cmp(&self.cost).then_with(|| {
+            self.x
+                .cmp(&other.x)
+                .then_with(|| self.y.cmp(&other.y))
+                .then_with(|| self.dir.cmp(&other.dir))
+        })
     }
 }
 
@@ -151,8 +133,59 @@ impl PartialOrd for State {
     }
 }
 
-fn a_star(grid: &Grid, min: usize, max: usize) -> usize {
-    // A*
+fn neighbours(
+    x: usize,
+    y: usize,
+    dir: Direction,
+    min: usize,
+    max: usize,
+    grid: &Grid,
+) -> Vec<(usize, usize, Direction, usize)> {
+    let mut result = vec![];
+
+    match dir {
+        Direction::VERTICAL => {
+            for i in min..=max {
+                if x >= i {
+                    let mut cost = 0;
+                    for j in 1..=i {
+                        cost += grid[y][x - j];
+                    }
+                    result.push((x - i, y, Direction::HORIZONTAL, cost));
+                }
+                if x + i < grid.columns {
+                    let mut cost = 0;
+                    for j in 1..=i {
+                        cost += grid[y][x + j];
+                    }
+                    result.push((x + i, y, Direction::HORIZONTAL, cost));
+                }
+            }
+        }
+        Direction::HORIZONTAL => {
+            for i in min..=max {
+                if y >= i {
+                    let mut cost = 0;
+                    for j in 1..=i {
+                        cost += grid[y - j][x];
+                    }
+                    result.push((x, y - i, Direction::VERTICAL, cost));
+                }
+                if y + i < grid.rows {
+                    let mut cost = 0;
+                    for j in 1..=i {
+                        cost += grid[y + j][x];
+                    }
+                    result.push((x, y + i, Direction::VERTICAL, cost));
+                }
+            }
+        }
+    }
+
+    result
+}
+
+fn djikstra(grid: &Grid, min: usize, max: usize) -> usize {
     // basically copied from https://doc.rust-lang.org/std/collections/binary_heap/index.html
     // with some modifications to fit the context
     let mut heap = BinaryHeap::new();
@@ -168,152 +201,40 @@ fn a_star(grid: &Grid, min: usize, max: usize) -> usize {
         columns: grid.columns,
     };
 
-    let add_to_heap = |heap: &mut BinaryHeap<State>,
-                       dist: &mut Grid,
-                       x: usize,
-                       y: usize,
-                       diff: usize,
-                       cost: usize,
-                       dir: Direction| match dir {
-        Direction::VERTICAL => {
-            // underflow check
-            if y >= diff {
-                let mut new_cost = cost;
-                for j in 1..=diff {
-                    new_cost += grid[y - j][x];
-                }
+    let neighbours_local =
+        |x: usize, y: usize, dir: Direction| -> Vec<(usize, usize, Direction, usize)> {
+            neighbours(x, y, dir, min, max, &grid)
+        };
 
-                if new_cost < dist[y - diff][x] {
-                    dist[y - diff][x] = new_cost;
-                    heap.push(State {
-                        x,
-                        y: y - diff,
-                        cost: new_cost,
-                        heuristic: grid.columns - x + grid.rows - (y - diff),
-                        dir: Direction::VERTICAL,
-                    });
-                }
-            }
-
-            // in bounds check
-            if y + diff < grid.rows {
-                let mut new_cost = cost;
-                for j in 1..=diff {
-                    new_cost += grid[y + j][x]
-                }
-
-                if new_cost < dist[y + diff][x] {
-                    dist[y + diff][x] = new_cost;
-                    heap.push(State {
-                        x,
-                        y: y + diff,
-                        cost: new_cost,
-                        heuristic: grid.columns - x + grid.rows - (y + diff),
-                        dir: Direction::VERTICAL,
-                    });
-                }
-            }
-        }
-        Direction::HORIZONTAL => {
-            // underflow check
-            if x >= diff {
-                let mut new_cost = cost;
-                for j in 1..=diff {
-                    new_cost += grid[y][x - j];
-                }
-
-                if new_cost < dist[y][x - diff] {
-                    dist[y][x - diff] = new_cost;
-                    heap.push(State {
-                        x: x - diff,
-                        y,
-                        cost: new_cost,
-                        heuristic: grid.columns - (x - diff) + grid.rows - y,
-                        dir: Direction::HORIZONTAL,
-                    });
-                }
-            }
-
-            // in bounds check
-            if x + diff < grid.columns {
-                let mut new_cost = cost;
-                for j in 1..=diff {
-                    new_cost += grid[y][x + j];
-                }
-
-                if new_cost < dist[y][x + diff] {
-                    dist[y][x + diff] = new_cost;
-                    heap.push(State {
-                        x: x + diff,
-                        y,
-                        cost: new_cost,
-                        heuristic: grid.columns - (x + diff) + grid.rows - y,
-                        dir: Direction::HORIZONTAL,
-                    });
-                }
-            }
-        }
-    };
-
-    for i in min..=max {
-        add_to_heap(
-            &mut heap,
-            &mut dist_horizontal,
-            0,
-            0,
-            i,
-            0,
-            Direction::HORIZONTAL,
-        );
-        add_to_heap(
-            &mut heap,
-            &mut dist_vertical,
-            0,
-            0,
-            i,
-            0,
-            Direction::VERTICAL,
-        );
+    for (x, y, dir, cost) in neighbours_local(0, 0, Direction::VERTICAL) {
+        dist_horizontal[y][x] = cost;
+        heap.push(State { x, y, cost, dir })
     }
 
-    while let Some(State {
-        x,
-        y,
-        cost,
-        heuristic: _,
-        dir,
-    }) = heap.pop()
-    {
+    for (x, y, dir, cost) in neighbours_local(0, 0, Direction::HORIZONTAL) {
+        dist_vertical[y][x] = cost;
+        heap.push(State { x, y, cost, dir })
+    }
+
+    while let Some(State { x, y, cost, dir }) = heap.pop() {
         if (x, y) == (grid.columns - 1, grid.rows - 1) {
             return cost;
         }
 
-        match dir {
-            Direction::HORIZONTAL => {
-                for i in min..=max {
-                    add_to_heap(
-                        &mut heap,
-                        &mut dist_vertical,
-                        x,
-                        y,
-                        i,
-                        cost,
-                        Direction::VERTICAL,
-                    );
-                }
-            }
-            Direction::VERTICAL => {
-                for i in min..=max {
-                    add_to_heap(
-                        &mut heap,
-                        &mut dist_horizontal,
-                        x,
-                        y,
-                        i,
-                        cost,
-                        Direction::HORIZONTAL,
-                    );
-                }
+        for (xn, yn, dirn, costn) in neighbours_local(x, y, dir) {
+            let costn = cost + costn;
+            let dist = match dir {
+                Direction::VERTICAL => &mut dist_horizontal,
+                Direction::HORIZONTAL => &mut dist_vertical,
+            };
+            if costn < dist[yn][xn] {
+                dist[yn][xn] = costn;
+                heap.push(State {
+                    x: xn,
+                    y: yn,
+                    cost: costn,
+                    dir: dirn,
+                })
             }
         }
     }
@@ -323,12 +244,12 @@ fn a_star(grid: &Grid, min: usize, max: usize) -> usize {
 
 fn part1(input: &str) -> usize {
     let grid = Grid::from_input(input);
-    a_star(&grid, 1, 3)
+    djikstra(&grid, 1, 3)
 }
 
 fn part2(input: &str) -> usize {
     let grid = Grid::from_input(input);
-    a_star(&grid, 4, 10)
+    djikstra(&grid, 4, 10)
 }
 
 fn main() -> Result<(), std::io::Error> {
