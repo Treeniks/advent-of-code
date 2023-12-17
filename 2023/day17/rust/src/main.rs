@@ -298,7 +298,149 @@ fn part1(input: &str) -> usize {
 }
 
 fn part2(input: &str) -> usize {
-    0
+    let grid = Grid::from_input(input);
+
+    // A*
+    // basically copied from https://doc.rust-lang.org/std/collections/binary_heap/index.html
+    // with some modifications to fit the context
+    let mut heap = BinaryHeap::new();
+    let mut dist_horizontal = Grid {
+        grid: vec![usize::MAX; grid.grid.len()],
+        rows: grid.rows,
+        columns: grid.columns,
+    };
+
+    let mut dist_vertical = Grid {
+        grid: vec![usize::MAX; grid.grid.len()],
+        rows: grid.rows,
+        columns: grid.columns,
+    };
+
+    for i in 4..=10 {
+        let mut cost = 0;
+        for j in 1..=i {
+            cost += grid[0][j]
+        }
+        heap.push(State {
+            x: i,
+            y: 0,
+            cost,
+            heuristic: grid.columns - i + grid.rows,
+            dir: Direction::HORIZONTAL,
+        });
+
+        let mut cost = 0;
+        for j in 1..=i {
+            cost += grid[j][0]
+        }
+        heap.push(State {
+            x: 0,
+            y: i,
+            cost,
+            heuristic: grid.rows - i + grid.columns,
+            dir: Direction::VERTICAL,
+        });
+    }
+
+    while let Some(State {
+        x,
+        y,
+        cost,
+        heuristic: _,
+        dir,
+    }) = heap.pop()
+    {
+        if (x, y) == (grid.columns - 1, grid.rows - 1) {
+            return cost;
+        }
+
+        match dir {
+            Direction::HORIZONTAL => {
+                for i in 4..=10 {
+                    if let Some(new_y) = y.checked_sub(i) {
+                        let mut new_cost = cost;
+                        for j in 1..=i {
+                            new_cost += grid[y - j][x]
+                        }
+
+                        if new_cost < dist_vertical[new_y][x] {
+                            dist_vertical[new_y][x] = new_cost;
+
+                            heap.push(State {
+                                x,
+                                y: new_y,
+                                cost: new_cost,
+                                heuristic: grid.rows - new_y + grid.columns,
+                                dir: Direction::VERTICAL,
+                            });
+                        }
+                    }
+
+                    if let Some(new_y) = grid.checked_add_vertical(y, i) {
+                        let mut new_cost = cost;
+                        for j in 1..=i {
+                            new_cost += grid[y + j][x]
+                        }
+
+                        if new_cost < dist_vertical[new_y][x] {
+                            dist_vertical[new_y][x] = new_cost;
+
+                            heap.push(State {
+                                x,
+                                y: new_y,
+                                cost: new_cost,
+                                heuristic: grid.rows - new_y + grid.columns,
+                                dir: Direction::VERTICAL,
+                            });
+                        }
+                    }
+                }
+            }
+            Direction::VERTICAL => {
+                for i in 4..=10 {
+                    if let Some(new_x) = x.checked_sub(i) {
+                        let mut new_cost = cost;
+                        for j in 1..=i {
+                            new_cost += grid[y][x - j]
+                        }
+
+                        if new_cost < dist_horizontal[y][new_x] {
+                            dist_horizontal[y][new_x] = new_cost;
+
+                            heap.push(State {
+                                x: new_x,
+                                y,
+                                cost: new_cost,
+                                heuristic: grid.columns - new_x + grid.rows,
+                                dir: Direction::HORIZONTAL,
+                            });
+                        }
+                    }
+
+                    if let Some(new_x) = grid.checked_add_horizontal(x, i) {
+                        let mut new_cost = cost;
+                        for j in 1..=i {
+                            new_cost += grid[y][x + j]
+                        }
+
+                        if new_cost < dist_horizontal[y][new_x] {
+                            dist_horizontal[y][new_x] = new_cost;
+
+                            heap.push(State {
+                                x: new_x,
+                                y,
+                                cost: new_cost,
+                                heuristic: grid.columns - new_x + grid.rows,
+                                dir: Direction::HORIZONTAL,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    unreachable!();
 }
 
 fn main() -> Result<(), std::io::Error> {
@@ -314,6 +456,28 @@ fn main() -> Result<(), std::io::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const EXAMPLE: &str = "2413432311323
+3215453535623
+3255245654254
+3446585845452
+4546657867536
+1438598798454
+4457876987766
+3637877979653
+4654967986887
+4564679986453
+1224686865563
+2546548887735
+4322674655533
+";
+
+    const EXAMPLE2: &str = "111111111111
+999999999991
+999999999991
+999999999991
+999999999991
+";
 
     #[test]
     fn test_simple() {
@@ -331,23 +495,24 @@ mod tests {
 
     #[test]
     fn test_part1() {
-        let input = "2413432311323
-3215453535623
-3255245654254
-3446585845452
-4546657867536
-1438598798454
-4457876987766
-3637877979653
-4654967986887
-4564679986453
-1224686865563
-2546548887735
-4322674655533
-";
-
         let expected = 102;
-        let actual = part1(input);
+        let actual = part1(EXAMPLE);
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_part2() {
+        let expected = 94;
+        let actual = part2(EXAMPLE);
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_part2_2() {
+        let expected = 71;
+        let actual = part2(EXAMPLE2);
 
         assert_eq!(expected, actual);
     }
