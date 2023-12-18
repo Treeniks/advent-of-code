@@ -100,8 +100,8 @@ impl IndexMut<usize> for Grid {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Direction {
-    VERTICAL,
-    HORIZONTAL,
+    Vertical,
+    Horizontal,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -144,39 +144,39 @@ fn neighbours(
     let mut result = vec![];
 
     match dir {
-        Direction::VERTICAL => {
+        Direction::Vertical => {
             for i in min..=max {
                 if x >= i {
                     let mut cost = 0;
                     for j in 1..=i {
                         cost += grid[y][x - j];
                     }
-                    result.push((x - i, y, Direction::HORIZONTAL, cost));
+                    result.push((x - i, y, Direction::Horizontal, cost));
                 }
                 if x + i < grid.columns {
                     let mut cost = 0;
                     for j in 1..=i {
                         cost += grid[y][x + j];
                     }
-                    result.push((x + i, y, Direction::HORIZONTAL, cost));
+                    result.push((x + i, y, Direction::Horizontal, cost));
                 }
             }
         }
-        Direction::HORIZONTAL => {
+        Direction::Horizontal => {
             for i in min..=max {
                 if y >= i {
                     let mut cost = 0;
                     for j in 1..=i {
                         cost += grid[y - j][x];
                     }
-                    result.push((x, y - i, Direction::VERTICAL, cost));
+                    result.push((x, y - i, Direction::Vertical, cost));
                 }
                 if y + i < grid.rows {
                     let mut cost = 0;
                     for j in 1..=i {
                         cost += grid[y + j][x];
                     }
-                    result.push((x, y + i, Direction::VERTICAL, cost));
+                    result.push((x, y + i, Direction::Vertical, cost));
                 }
             }
         }
@@ -206,12 +206,12 @@ fn djikstra(grid: &Grid, min: usize, max: usize) -> usize {
             neighbours(x, y, dir, min, max, &grid)
         };
 
-    for (x, y, dir, cost) in neighbours_local(0, 0, Direction::VERTICAL) {
+    for (x, y, dir, cost) in neighbours_local(0, 0, Direction::Vertical) {
         dist_horizontal[y][x] = cost;
         heap.push(State { x, y, cost, dir })
     }
 
-    for (x, y, dir, cost) in neighbours_local(0, 0, Direction::HORIZONTAL) {
+    for (x, y, dir, cost) in neighbours_local(0, 0, Direction::Horizontal) {
         dist_vertical[y][x] = cost;
         heap.push(State { x, y, cost, dir })
     }
@@ -224,8 +224,8 @@ fn djikstra(grid: &Grid, min: usize, max: usize) -> usize {
         for (xn, yn, dirn, costn) in neighbours_local(x, y, dir) {
             let costn = cost + costn;
             let dist = match dir {
-                Direction::VERTICAL => &mut dist_horizontal,
-                Direction::HORIZONTAL => &mut dist_vertical,
+                Direction::Vertical => &mut dist_horizontal,
+                Direction::Horizontal => &mut dist_vertical,
             };
             if costn < dist[yn][xn] {
                 dist[yn][xn] = costn;
