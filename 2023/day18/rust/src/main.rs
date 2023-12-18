@@ -52,21 +52,23 @@ impl TryFrom<&str> for Direction {
     }
 }
 
+struct Instruction {
+    direction: Direction,
+    length: usize,
+}
+
 type Grid = Vec<Vec<Tile>>;
 
-fn generate_grid(input: &str) -> Grid {
+#[allow(unused)]
+fn generate_grid(instructions: &[Instruction]) -> Grid {
     let mut grid: Grid = vec![vec![Tile::Digged]];
 
     let (mut x, mut y): (usize, usize) = (0, 0);
 
-    for line in input.lines() {
-        let mut it = line.split_whitespace();
-        let direction: Direction = it.next().unwrap().try_into().unwrap();
-        let length: usize = it.next().unwrap().parse().unwrap();
-
-        match direction {
+    for instruction in instructions {
+        match instruction.direction {
             Direction::Left => {
-                for i in 1..=length {
+                for i in 1..=instruction.length {
                     if let Some(nx) = x.checked_sub(i) {
                         grid[y][nx] = Tile::Digged;
                     } else {
@@ -77,20 +79,20 @@ fn generate_grid(input: &str) -> Grid {
                         grid[y][x - i] = Tile::Digged;
                     }
                 }
-                x -= length;
+                x -= instruction.length;
             }
             Direction::Right => {
-                for i in 1..=length {
+                for i in 1..=instruction.length {
                     if x + i < grid[y].len() {
                         grid[y][x + i] = Tile::Digged;
                     } else {
                         grid[y].push(Tile::Digged);
                     }
                 }
-                x += length;
+                x += instruction.length;
             }
             Direction::Up => {
-                for i in 1..=length {
+                for i in 1..=instruction.length {
                     if let Some(ny) = y.checked_sub(i) {
                         match grid[ny].get_mut(x) {
                             Some(tile) => *tile = Tile::Digged,
@@ -107,10 +109,10 @@ fn generate_grid(input: &str) -> Grid {
                         y += 1;
                     }
                 }
-                y -= length;
+                y -= instruction.length;
             }
             Direction::Down => {
-                for i in 1..=length {
+                for i in 1..=instruction.length {
                     if y + i < grid.len() {
                         match grid[y + i].get_mut(x) {
                             Some(tile) => *tile = Tile::Digged,
@@ -126,7 +128,7 @@ fn generate_grid(input: &str) -> Grid {
                         grid.push(new_vec);
                     }
                 }
-                y += length;
+                y += instruction.length;
             }
         }
     }
@@ -145,6 +147,7 @@ fn generate_grid(input: &str) -> Grid {
 // ....##..
 // ..#####.
 // ..#...#.
+#[allow(unused)]
 fn flood_fill_inside(grid: &mut Grid) {
     let first_x = grid[0]
         .iter()
@@ -174,11 +177,52 @@ fn flood_fill_inside(grid: &mut Grid) {
     }
 }
 
-fn part1(input: &str) -> usize {
-    let mut grid = generate_grid(input.trim());
+fn parse_instructions_part1(input: &str) -> Vec<Instruction> {
+    input
+        .trim()
+        .lines()
+        .map(|line| {
+            let mut it = line.split_whitespace();
+            let direction = it.next().unwrap().try_into().unwrap();
+            let length = it.next().unwrap().parse().unwrap();
+            Instruction { direction, length }
+        })
+        .collect()
+}
 
-    flood_fill_inside(&mut grid);
+fn parse_instructions_part2(input: &str) -> Vec<Instruction> {
+    input
+        .trim()
+        .lines()
+        .map(|line| {
+            let mut it = line.split_whitespace();
+            let _ = it.next();
+            let _ = it.next();
 
+            let tmp = it
+                .next()
+                .unwrap()
+                .strip_prefix("(#")
+                .unwrap()
+                .strip_suffix(")")
+                .unwrap();
+
+            let length = usize::from_str_radix(&tmp[..5], 16).unwrap();
+            let direction = match tmp.chars().nth(5).unwrap() {
+                '0' => Direction::Right,
+                '1' => Direction::Down,
+                '2' => Direction::Left,
+                '3' => Direction::Up,
+                _ => unreachable!(),
+            };
+
+            Instruction { direction, length }
+        })
+        .collect()
+}
+
+#[allow(unused)]
+fn count_inside_digged(grid: &Grid) -> usize {
     grid.iter()
         .map(|line| {
             line.iter()
@@ -188,8 +232,81 @@ fn part1(input: &str) -> usize {
         .sum()
 }
 
-fn part2(input: &str) -> usize {
-    0
+fn generate_points(instructions: &[Instruction]) -> Vec<(isize, isize)> {
+    let mut result = Vec::new();
+
+    let (mut x, mut y) = (0isize, 0isize);
+    result.push((x, y));
+    let mut it = instructions.windows(2);
+    while let Some([instruction, next_instruction]) = it.next() {
+        match instruction.direction {
+            Direction::Left => {
+                x -= instruction.length as isize;
+                match next_instruction.direction {
+                    Direction::Up => result.push((x, y + 1)),
+                    Direction::Down => result.push((x + 1, y + 1)),
+                    _ => unreachable!(),
+                }
+            }
+            Direction::Right => {
+                x += instruction.length as isize;
+                match next_instruction.direction {
+                    Direction::Up => result.push((x, y)),
+                    Direction::Down => result.push((x + 1, y)),
+                    _ => unreachable!(),
+                }
+            }
+            Direction::Up => {
+                y -= instruction.length as isize;
+                match next_instruction.direction {
+                    Direction::Left => result.push((x, y + 1)),
+                    Direction::Right => result.push((x, y)),
+                    _ => unreachable!(),
+                }
+            }
+            Direction::Down => {
+                y += instruction.length as isize;
+                match next_instruction.direction {
+                    Direction::Left => result.push((x + 1, y + 1)),
+                    Direction::Right => result.push((x + 1, y)),
+                    _ => unreachable!(),
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+// https://en.wikipedia.org/wiki/Shoelace_formula
+// modified trapezoid formula
+// simplified as we know we only ever have straight lines
+fn calculate_area(points: &[(isize, isize)]) -> isize {
+    let mut result = 0;
+
+    for i in 0..points.len() - 1 {
+        result += points[i].1 * (points[i].0 - points[i + 1].0)
+    }
+    // not needed, because the last step is always straight up or down,
+    // making its area 0
+    // result +=
+    //     (points[points.len() - 1].1 + points[0].1) * (points[points.len() - 1].0 - points[0].0);
+
+    result
+}
+
+fn part1(input: &str) -> isize {
+    let instructions = parse_instructions_part1(input);
+    let points = generate_points(&instructions);
+
+    calculate_area(&points)
+}
+
+fn part2(input: &str) -> isize {
+    let instructions = parse_instructions_part2(input);
+    let points = generate_points(&instructions);
+
+    calculate_area(&points)
 }
 
 fn main() -> Result<(), Error> {
@@ -231,6 +348,27 @@ U 2 (#7a21e3)
     }
 
     #[test]
+    fn test_part1_2() {
+        let input = "R 3 (#000000)
+D 3 (#000000)
+L 3 (#000000)
+U 3 (#000000)";
+
+        let expected = 16;
+        let actual = part1(input);
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_part2() {
+        let expected = 952408144115;
+        let actual = part2(EXAMPLE);
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
     fn test_generate_grid() {
         let input = "
 R 3 (#000000)
@@ -264,7 +402,8 @@ D 3 (#000000)
             .map(|line| line.chars().map(|c| c.try_into().unwrap()).collect())
             .collect();
 
-        let actual = generate_grid(input.trim());
+        let instructions = parse_instructions_part1(input);
+        let actual = generate_grid(&instructions);
         assert_eq!(expected, actual);
     }
 }
