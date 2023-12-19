@@ -1,27 +1,9 @@
 use std::{
+    cmp::{max, min},
     collections::HashMap,
     io::{Error, Read},
     ops::{Index, IndexMut},
 };
-
-const EXAMPLE: &str = "px{a<2006:qkq,m>2090:A,rfg}
-pv{a>1716:R,A}
-lnx{m>1548:A,A}
-rfg{s<537:gd,x>2440:R,A}
-qs{s>3448:A,lnx}
-qkq{x<1416:A,crn}
-crn{x>2662:A,R}
-in{s<1351:px,qqz}
-qqz{s>2770:qs,m<1801:hdj,R}
-gd{a>3333:R,R}
-hdj{m>838:A,pv}
-
-{x=787,m=2655,a=1222,s=2876}
-{x=1679,m=44,a=2067,s=496}
-{x=2036,m=264,a=79,s=2244}
-{x=2461,m=1339,a=466,s=291}
-{x=2127,m=1623,a=2188,s=1013}
-";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ConditionType {
@@ -49,15 +31,19 @@ enum Category {
     Shiny = 3,
 }
 
+impl Category {
+    const VALUES: [Self; 4] = [Self::Cool, Self::Musical, Self::Aerodynamic, Self::Shiny];
+}
+
 impl TryFrom<char> for Category {
     type Error = ();
 
     fn try_from(value: char) -> Result<Self, Self::Error> {
         match value {
-            'x' => Ok(Category::Cool),
-            'm' => Ok(Category::Musical),
-            'a' => Ok(Category::Aerodynamic),
-            's' => Ok(Category::Shiny),
+            'x' => Ok(Self::Cool),
+            'm' => Ok(Self::Musical),
+            'a' => Ok(Self::Aerodynamic),
+            's' => Ok(Self::Shiny),
             _ => Err(()),
         }
     }
@@ -186,20 +172,20 @@ impl TryFrom<&str> for Part {
     }
 }
 
-fn parse_input(input: &str) -> (HashMap<String, Workflow>, Vec<Part>) {
+fn parse_input(input: &str) -> (HashMap<&str, Workflow>, Vec<Part>) {
     let f = input.trim().find("\n\n").unwrap();
     let workflows_input = input[..f].trim();
     let parts_input = input[f + 1..].trim();
 
-    let mut workflows: HashMap<String, Workflow> = HashMap::new();
-    let mut parts: Vec<Part> = Vec::new();
+    let mut workflows = HashMap::new();
+    let mut parts = Vec::new();
 
     for workflow in workflows_input.lines() {
         let f = workflow.find('{').unwrap();
         let name = &workflow[..f];
 
         workflows.insert(
-            name.to_string(),
+            name,
             workflow[f + 1..workflow.len() - 1].try_into().unwrap(),
         );
     }
@@ -245,8 +231,96 @@ fn part1(input: &str) -> usize {
     result
 }
 
+// [range.0, range.1)
+// i.e. left is inclusive, right is exclusive
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct RuleRange {
+    arr: [(usize, usize); 4],
+}
+
+impl Default for RuleRange {
+    fn default() -> Self {
+        Self {
+            arr: [(1, 4001); 4],
+        }
+    }
+}
+
+impl Index<Category> for RuleRange {
+    type Output = (usize, usize);
+
+    fn index(&self, index: Category) -> &Self::Output {
+        &self.arr[index as usize]
+    }
+}
+
+impl IndexMut<Category> for RuleRange {
+    fn index_mut(&mut self, index: Category) -> &mut Self::Output {
+        &mut self.arr[index as usize]
+    }
+}
+
+fn evaluate_range<'a>(
+    workflow: &'a Workflow,
+    mut ranges: RuleRange,
+) -> Vec<(RuleRange, WorkflowResult<'a>)> {
+    let mut result = Vec::new();
+
+    for rule in &workflow.rules {
+        match rule.condition.ctype {
+            ConditionType::Less => {
+                let upper_bound = min(rule.condition.value, ranges[rule.condition.category].1);
+                let mut new_range = ranges;
+                new_range[rule.condition.category].1 = upper_bound;
+                result.push((new_range, rule.result));
+                ranges[rule.condition.category].0 = upper_bound;
+            }
+            ConditionType::Greater => {
+                let lower_bound = max(rule.condition.value + 1, ranges[rule.condition.category].0);
+                let mut new_range = ranges;
+                new_range[rule.condition.category].0 = lower_bound;
+                result.push((new_range, rule.result));
+                ranges[rule.condition.category].1 = lower_bound;
+            }
+        }
+    }
+
+    result.push((ranges, workflow.fallback));
+
+    result
+}
+
 fn part2(input: &str) -> usize {
-    0
+    let (workflows, _) = parse_input(input);
+
+    let mut result = 0;
+
+    let mut ranges: Vec<(RuleRange, WorkflowResult)> =
+        vec![(RuleRange::default(), WorkflowResult::Jump("in"))];
+
+    loop {
+        let mut extend = Vec::new();
+
+        if let Some((ranges, wresult)) = ranges.pop() {
+            match wresult {
+                WorkflowResult::Jump(s) => extend.extend(evaluate_range(&workflows[s], ranges)),
+                WorkflowResult::Accept => {
+                    let mut tmp = 1;
+                    for category in Category::VALUES {
+                        tmp *= ranges[category].1 - ranges[category].0;
+                    }
+                    result += tmp;
+                }
+                WorkflowResult::Reject => {}
+            }
+        } else {
+            break;
+        }
+
+        ranges.extend(extend);
+    }
+
+    result
 }
 
 fn main() -> Result<(), Error> {
@@ -256,8 +330,6 @@ fn main() -> Result<(), Error> {
     println!("Part 1: {}", part1(&input));
     println!("Part 2: {}", part2(&input));
 
-    // dbg!(parse_input(EXAMPLE));
-
     Ok(())
 }
 
@@ -265,10 +337,37 @@ fn main() -> Result<(), Error> {
 mod tests {
     use super::*;
 
+    const EXAMPLE: &str = "px{a<2006:qkq,m>2090:A,rfg}
+pv{a>1716:R,A}
+lnx{m>1548:A,A}
+rfg{s<537:gd,x>2440:R,A}
+qs{s>3448:A,lnx}
+qkq{x<1416:A,crn}
+crn{x>2662:A,R}
+in{s<1351:px,qqz}
+qqz{s>2770:qs,m<1801:hdj,R}
+gd{a>3333:R,R}
+hdj{m>838:A,pv}
+
+{x=787,m=2655,a=1222,s=2876}
+{x=1679,m=44,a=2067,s=496}
+{x=2036,m=264,a=79,s=2244}
+{x=2461,m=1339,a=466,s=291}
+{x=2127,m=1623,a=2188,s=1013}
+";
+
     #[test]
     fn test_part1() {
         let expected = 19114;
         let actual = part1(EXAMPLE);
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_part2() {
+        let expected = 167409079868000;
+        let actual = part2(EXAMPLE);
 
         assert_eq!(expected, actual);
     }
