@@ -1,3 +1,4 @@
+use num::integer::lcm;
 use std::{
     collections::{HashMap, VecDeque},
     io::{Error, Read},
@@ -250,18 +251,71 @@ fn part1(input: &str) -> usize {
 fn part2(input: &str) -> usize {
     let mut puzzle = parse_input(input);
 
-    let mut result = 0;
+    // So basically you were supposed to figure out that in the input,
+    // the only way for rx to get a signal is by getting it from a single conjunction
+    // (for my input that conjunction is called gf).
+    // Then you should figure out that this conjunction only depends on 4 other conjunctions
+    // (in my case called sp, pg, sv and qs) and if you look further,
+    // then you'll even notive that these each only depend on 1 conjunction
+    // (rn, pz, jt and mh for my input),
+    // though that last fact seems irrelevant.
+    //
+    // What you can then do is measure how long it takes for the 4 inputs of gf to send a high
+    // pulse, because for gf to send a low pulse, all it needs is to get a high pulse from all of
+    // its 4 inputs. The actual result is then the least common multiple of those 4 results.
+    // Since I am lazy, I hardcoded my 4 gf inputs. Maybe I'll improve it at some point.
+    //
+    // Also notice how we don't need to actually need to use an lcm function,
+    // as those 4 inputs seem to be coprime.
+    // However, I did anyway as I think it's nicer.
+    let mut counter = 0;
+    let mut sp = 0;
+    let mut pg = 0;
+    let mut sv = 0;
+    let mut qs = 0;
     loop {
-        result += 1;
-        if press_button(&mut puzzle)
-            .iter()
-            .any(|p| p.recipient == "rx" && p.ptype == PulseType::Low)
+        counter += 1;
+
+        let pulses = press_button(&mut puzzle);
+
+        if sp == 0
+            && pulses
+                .iter()
+                .any(|p| p.sender == "sp" && p.ptype == PulseType::High)
         {
+            sp = counter;
+        }
+
+        if pg == 0
+            && pulses
+                .iter()
+                .any(|p| p.sender == "pg" && p.ptype == PulseType::High)
+        {
+            pg = counter;
+        }
+
+        if sv == 0
+            && pulses
+                .iter()
+                .any(|p| p.sender == "sv" && p.ptype == PulseType::High)
+        {
+            sv = counter;
+        }
+
+        if qs == 0
+            && pulses
+                .iter()
+                .any(|p| p.sender == "qs" && p.ptype == PulseType::High)
+        {
+            qs = counter;
+        }
+
+        if sp > 0 && pg > 0 && sv > 0 && qs > 0 {
             break;
         }
     }
 
-    result
+    lcm(lcm(sp, pg), lcm(sv, qs))
 }
 
 fn main() -> Result<(), Error> {
