@@ -4,20 +4,6 @@ use std::{
     ops::{Deref, DerefMut, Not},
 };
 
-const EXAMPLE: &str = "broadcaster -> a, b, c
-%a -> b
-%b -> c
-%c -> inv
-&inv -> a
-";
-
-const EXAMPLE2: &str = "broadcaster -> a
-%a -> inv, con
-&inv -> b
-%b -> con
-&con -> output
-";
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum State {
     Off,
@@ -78,7 +64,7 @@ struct Module<'a> {
 }
 
 impl<'a> Module<'a> {
-    fn send_signal(&mut self, ptype: PulseType, sender: &str, pulses: &mut VecDeque<Pulse<'a>>) {
+    fn send_signal(&mut self, ptype: PulseType, sender: &str) -> Vec<Pulse<'a>> {
         match self.mtype {
             ModuleType::FlipFlop(ref mut state) => {
                 match ptype {
@@ -88,17 +74,18 @@ impl<'a> Module<'a> {
                             State::On => PulseType::Low,
                         };
 
-                        for recipient in &self.destinations {
-                            pulses.push_back(Pulse {
+                        *state = !*state;
+
+                        self.destinations
+                            .iter()
+                            .map(|recipient| Pulse {
                                 sender: self.name,
                                 ptype,
                                 recipient,
-                            });
-                        }
-
-                        *state = !*state;
+                            })
+                            .collect()
                     }
-                    PulseType::High => {} // nothing happens
+                    PulseType::High => vec![], // nothing happens
                 }
             }
             ModuleType::Conjunction(ref mut memory) => {
@@ -111,13 +98,14 @@ impl<'a> Module<'a> {
                     PulseType::High
                 };
 
-                for recipient in &self.destinations {
-                    pulses.push_back(Pulse {
+                self.destinations
+                    .iter()
+                    .map(|recipient| Pulse {
                         sender: self.name,
                         ptype,
                         recipient,
-                    });
-                }
+                    })
+                    .collect()
             }
         }
     }
@@ -208,32 +196,42 @@ fn parse_input(input: &str) -> Puzzle {
     }
 }
 
-fn cycle<'a>(puzzle: &'a mut Puzzle, cycles: usize) -> usize {
+fn press_button<'a>(puzzle: &mut Puzzle<'a>) -> Vec<Pulse<'a>> {
     let mut pulses = VecDeque::new();
+    let mut result = Vec::new();
+
+    for module in &puzzle.broadcaster {
+        pulses.extend(
+            puzzle
+                .modules
+                .get_mut(module)
+                .unwrap()
+                .send_signal(PulseType::Low, module),
+        );
+
+        result.push(Pulse {
+            sender: "broadcaster",
+            ptype: PulseType::Low,
+            recipient: module,
+        });
+    }
+
+    while let Some(pulse) = pulses.pop_front() {
+        if let Some(m) = puzzle.modules.get_mut(pulse.recipient) {
+            pulses.extend(m.send_signal(pulse.ptype, pulse.sender));
+        } // else the module is a named output
+
+        result.push(pulse);
+    }
+
+    result
+}
+
+fn cycle<'a>(puzzle: &'a mut Puzzle, cycles: usize) -> usize {
     let mut log: Vec<Pulse> = Vec::new();
 
     for _ in 0..cycles {
-        for module in &puzzle.broadcaster {
-            puzzle.modules.get_mut(module).unwrap().send_signal(
-                PulseType::Low,
-                module,
-                &mut pulses,
-            );
-
-            log.push(Pulse {
-                sender: "broadcaster",
-                ptype: PulseType::Low,
-                recipient: module,
-            });
-        }
-
-        while let Some(pulse) = pulses.pop_front() {
-            if let Some(m) = puzzle.modules.get_mut(pulse.recipient) {
-                m.send_signal(pulse.ptype, pulse.sender, &mut pulses);
-            } // else the module is a named output
-
-            log.push(pulse);
-        }
+        log.extend(press_button(puzzle));
     }
 
     // + cycles for the button pulse(s)
@@ -250,7 +248,20 @@ fn part1(input: &str) -> usize {
 }
 
 fn part2(input: &str) -> usize {
-    0
+    let mut puzzle = parse_input(input);
+
+    let mut result = 0;
+    loop {
+        result += 1;
+        if press_button(&mut puzzle)
+            .iter()
+            .any(|p| p.recipient == "rx" && p.ptype == PulseType::Low)
+        {
+            break;
+        }
+    }
+
+    result
 }
 
 fn main() -> Result<(), Error> {
@@ -267,6 +278,20 @@ fn main() -> Result<(), Error> {
 mod tests {
     use super::*;
 
+    const EXAMPLE: &str = "broadcaster -> a, b, c
+%a -> b
+%b -> c
+%c -> inv
+&inv -> a
+";
+
+    const EXAMPLE2: &str = "broadcaster -> a
+%a -> inv, con
+&inv -> b
+%b -> con
+&con -> output
+";
+
     #[test]
     fn test_part1() {
         let expected = 32000000;
@@ -279,14 +304,6 @@ mod tests {
     fn test_part1_2() {
         let expected = 11687500;
         let actual = part1(EXAMPLE2);
-
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn test_part2() {
-        let expected = 0;
-        let actual = part2(EXAMPLE);
 
         assert_eq!(expected, actual);
     }
