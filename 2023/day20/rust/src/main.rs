@@ -263,59 +263,76 @@ fn part2(input: &str) -> usize {
     // What you can then do is measure how long it takes for the 4 inputs of gf to send a high
     // pulse, because for gf to send a low pulse, all it needs is to get a high pulse from all of
     // its 4 inputs. The actual result is then the least common multiple of those 4 results.
-    // Since I am lazy, I hardcoded my 4 gf inputs. Maybe I'll improve it at some point.
     //
     // Also notice how we don't need to actually need to use an lcm function,
     // as those 4 inputs seem to be coprime.
     // However, I did anyway as I think it's nicer.
+
+    // find out the 4 dependents
+    let rx_dependency = puzzle
+        .modules
+        .values()
+        .find(|module| module.destinations.contains(&"rx"))
+        .unwrap();
+
+    let dependents: Vec<Module> = puzzle
+        .modules
+        .values()
+        .filter(|module| module.destinations.contains(&rx_dependency.name))
+        .cloned()
+        .collect();
+
+    // if it's not of length 4, then fuck
+    assert!(dependents.len() == 4);
+
     let mut counter = 0;
-    let mut sp = 0;
-    let mut pg = 0;
-    let mut sv = 0;
-    let mut qs = 0;
+    let mut d0 = 0;
+    let mut d1 = 0;
+    let mut d2 = 0;
+    let mut d3 = 0;
     loop {
         counter += 1;
 
         let pulses = press_button(&mut puzzle);
 
-        if sp == 0
+        if d0 == 0
             && pulses
                 .iter()
-                .any(|p| p.sender == "sp" && p.ptype == PulseType::High)
+                .any(|p| p.sender == dependents[0].name && p.ptype == PulseType::High)
         {
-            sp = counter;
+            d0 = counter;
         }
 
-        if pg == 0
+        if d1 == 0
             && pulses
                 .iter()
-                .any(|p| p.sender == "pg" && p.ptype == PulseType::High)
+                .any(|p| p.sender == dependents[1].name && p.ptype == PulseType::High)
         {
-            pg = counter;
+            d1 = counter;
         }
 
-        if sv == 0
+        if d2 == 0
             && pulses
                 .iter()
-                .any(|p| p.sender == "sv" && p.ptype == PulseType::High)
+                .any(|p| p.sender == dependents[2].name && p.ptype == PulseType::High)
         {
-            sv = counter;
+            d2 = counter;
         }
 
-        if qs == 0
+        if d3 == 0
             && pulses
                 .iter()
-                .any(|p| p.sender == "qs" && p.ptype == PulseType::High)
+                .any(|p| p.sender == dependents[3].name && p.ptype == PulseType::High)
         {
-            qs = counter;
+            d3 = counter;
         }
 
-        if sp > 0 && pg > 0 && sv > 0 && qs > 0 {
+        if d0 > 0 && d1 > 0 && d2 > 0 && d3 > 0 {
             break;
         }
     }
 
-    lcm(lcm(sp, pg), lcm(sv, qs))
+    lcm(lcm(d0, d1), lcm(d2, d3))
 }
 
 fn main() -> Result<(), Error> {
