@@ -130,7 +130,7 @@ impl TryFrom<&str> for Grid {
 
             let tiles = line
                 .chars()
-                .map(|c| Tile::try_from(c))
+                .map(Tile::try_from)
                 .collect::<Result<Vec<Tile>, _>>()?;
             grid.push(tiles);
         }
@@ -155,7 +155,7 @@ impl<'a> Iterator for GridIterator<'a> {
         if self.current_row < self.grid.rows {
             let r = Some(&self.grid[self.current_row]);
             self.current_row += 1;
-            return r;
+            r
         } else {
             None
         }
@@ -166,7 +166,7 @@ impl Index<(usize, usize)> for Grid {
     type Output = Tile;
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {
-        &self.get(index).unwrap()
+        self.get(index).unwrap()
     }
 }
 
