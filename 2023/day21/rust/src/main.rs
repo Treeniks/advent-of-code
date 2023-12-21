@@ -4,19 +4,6 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-const EXAMPLE: &str = "...........
-.....###.#.
-.###.##..#.
-..#.#...#..
-....#.#....
-.##..S####.
-.##..#...#.
-.......##..
-.##.#.####.
-.##..##.##.
-...........
-";
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Tile {
     Start,
@@ -52,13 +39,12 @@ impl TryFrom<char> for Tile {
 
 #[derive(Debug, Clone)]
 struct Grid {
-    grid: Vec<Tile>,
+    grid: Vec<Vec<Tile>>,
     rows: usize,
     columns: usize,
 }
 
 impl Grid {
-    #[allow(unused)]
     fn lines(&self) -> GridIterator {
         GridIterator {
             grid: self,
@@ -66,22 +52,61 @@ impl Grid {
         }
     }
 
-    #[allow(unused)]
     fn get(&self, (x, y): (usize, usize)) -> Option<&Tile> {
         if x < self.columns && y < self.rows {
-            Some(&self.grid[y * self.columns + x])
+            Some(&self.grid[y][x])
         } else {
             None
         }
     }
 
-    #[allow(unused)]
     fn get_mut(&mut self, (x, y): (usize, usize)) -> Option<&mut Tile> {
         if x < self.columns && y < self.rows {
-            Some(&mut self.grid[y * self.columns + x])
+            Some(&mut self.grid[y][x])
         } else {
             None
         }
+    }
+
+    // naming things is hard
+    // (see part 2 comments for what this does)
+    fn make_big(&mut self) {
+        // find s
+        let mut s_pos = (0, 0);
+        for (j, line) in self.grid.iter().enumerate() {
+            for (i, tile) in line.iter().enumerate() {
+                if *tile == Tile::Start {
+                    s_pos = (i, j);
+                    break;
+                }
+            }
+        }
+
+        // remove s
+        self[s_pos] = Tile::Plot;
+
+        // extend horizontally
+        for line in self.grid.iter_mut() {
+            let clone = line.clone();
+
+            line.extend(clone.clone());
+            line.extend(clone.clone());
+            line.extend(clone.clone());
+            line.extend(clone);
+        }
+
+        // extend vertically
+        let clone = self.grid.clone();
+        self.grid.extend(clone.clone());
+        self.grid.extend(clone.clone());
+        self.grid.extend(clone.clone());
+        self.grid.extend(clone);
+
+        // add s back in
+        self.grid[self.rows * 2 + s_pos.1][self.columns * 2 + s_pos.0] = Tile::Start;
+
+        self.columns *= 5;
+        self.rows *= 5;
     }
 }
 
@@ -96,7 +121,7 @@ impl TryFrom<&str> for Grid {
         let first_line = trimmed.lines().next().ok_or("input is empty")?;
         let columns = first_line.len();
 
-        let mut grid = Vec::with_capacity(rows * columns);
+        let mut grid = Vec::with_capacity(rows);
 
         for line in trimmed.lines() {
             if line.len() != columns {
@@ -107,7 +132,7 @@ impl TryFrom<&str> for Grid {
                 .chars()
                 .map(|c| Tile::try_from(c))
                 .collect::<Result<Vec<Tile>, _>>()?;
-            grid.extend(tiles);
+            grid.push(tiles);
         }
 
         Ok(Grid {
@@ -155,13 +180,13 @@ impl Index<usize> for Grid {
     type Output = [Tile];
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.grid[index * self.columns..index * self.columns + self.columns]
+        &self.grid[index]
     }
 }
 
 impl IndexMut<usize> for Grid {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.grid[index * self.columns..index * self.columns + self.columns]
+        &mut self.grid[index]
     }
 }
 
@@ -228,13 +253,7 @@ fn take_step(grid: &mut Grid) {
     }
 }
 
-fn part1(input: &str, steps: usize) -> usize {
-    let mut grid = Grid::try_from(input).unwrap();
-
-    for _ in 0..steps {
-        take_step(&mut grid);
-    }
-
+fn count_os(grid: &Grid) -> usize {
     grid.lines()
         .map(|tiles| {
             tiles
@@ -248,8 +267,81 @@ fn part1(input: &str, steps: usize) -> usize {
         .sum()
 }
 
+fn part1(input: &str, steps: usize) -> usize {
+    let mut grid = Grid::try_from(input).unwrap();
+
+    for _ in 0..steps {
+        take_step(&mut grid);
+    }
+
+    count_os(&grid)
+}
+
+fn aitken_neville(v0: usize, v1: usize, v2: usize, x: usize) -> usize {
+    let mut p = [v0, v1, v2];
+    for i in 1..3 {
+        for j in 0..3 - i {
+            p[j] = p[j] + (x - j) / ((i + j) - j) * (p[j + 1] - p[j]);
+        }
+    }
+    p[0]
+}
+
+// I honestly still don't understand this one.
+// Mostly solved with the help of reddit comments.
+// Supposedly by calculating the reached tiles for 65, 65 + 131 and 65 + 131 * 2 steps,
+// one can use the resulting values to extrapolate.
+//
+// It has something to do with how the input is well formed again.
+// For one, the starting point has no obstacles to all the edges,
+// then the edges themselves also have no rocks,
+// and lastly there is this big diamond of plot in the input that goes from edge to edge (most
+// easily seen with those code-minimaps from vscode or sublime).
+// Also, the starting point is right in the middle of the grid,
+// the grid is 131 wide and high (making it a square), and that's where
+// the 65 (= floor(131/2)) and 131 constants come from.
+// Lastly, the number of steps in the puzzle question is
+// 26501365, while 26501365 mod 131 = 65.
+//
+// Because of that, we want a function of the form f(x) = reached tiles in 65 + 131 * x steps.
+// And because of the observations above, that function happens to be quadratic (no idea why).
+// So, all we have to do is get the first 3 values (i.e. f(0), f(1) and f(2)), then we can uniquely
+// calculate the actual quadratic function, and then just evaluate f((26501365 - 65) / 131)
+// or more specifically f(202300).
+//
+// In this case, because we need only the value of a single argument,
+// the Aitken Neville scheme fit well.
+// The code of Aitken Neville above is copied from lecture slides of mine.
 fn part2(input: &str) -> usize {
-    0
+    let mut grid = Grid::try_from(input).unwrap();
+
+    // To find the values of the first 3 xs, we first need to make the grid sufficiently large.
+    // `make_big` just extends the grid by 5 in each direction.
+    // 5 is just a random value that turned out to be enough.
+    grid.make_big();
+
+    for _ in 0..65 {
+        take_step(&mut grid);
+    }
+
+    let v0 = count_os(&grid);
+    // println!("0: {}", count_os(&grid));
+
+    for _ in 0..131 {
+        take_step(&mut grid);
+    }
+
+    let v1 = count_os(&grid);
+    // println!("1: {}", count_os(&grid));
+
+    for _ in 0..131 {
+        take_step(&mut grid);
+    }
+
+    let v2 = count_os(&grid);
+    // println!("2: {}", count_os(&grid));
+
+    aitken_neville(v0, v1, v2, (26501365 - 65) / 131)
 }
 
 fn main() -> Result<(), Error> {
@@ -266,18 +358,23 @@ fn main() -> Result<(), Error> {
 mod tests {
     use super::*;
 
+    const EXAMPLE: &str = "...........
+.....###.#.
+.###.##..#.
+..#.#...#..
+....#.#....
+.##..S####.
+.##..#...#.
+.......##..
+.##.#.####.
+.##..##.##.
+...........
+";
+
     #[test]
     fn test_part1() {
         let expected = 16;
         let actual = part1(EXAMPLE, 6);
-
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn test_part2() {
-        let expected = 0;
-        let actual = part2(EXAMPLE);
 
         assert_eq!(expected, actual);
     }
