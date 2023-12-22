@@ -51,6 +51,9 @@ const Brick = struct {
     begin: Pos3,
     end: Pos3,
 
+    // both minVals and maxVals is probably not even needed
+    // since it would be much nicer to instead enforce an ordering
+    // when creating bricks...oh well
     fn minVals(self: Self) Pos3 {
         const min_x = if (self.begin.x < self.end.x) self.begin.x else self.end.x;
         const min_y = if (self.begin.y < self.end.y) self.begin.y else self.end.y;
@@ -148,6 +151,20 @@ fn checkOverlap(b1: Brick, b2: Brick) bool {
     return x_overlap and y_overlap and z_overlap;
 }
 
+// returns true if b1 supports b2
+fn checkSupport(b1: Brick, b2: Brick) bool {
+    const min_b1 = b1.minVals();
+    const max_b1 = b1.maxVals();
+
+    const min_b2 = b2.minVals();
+    const max_b2 = b2.maxVals();
+
+    const x_overlap = !(max_b1.x < min_b2.x or max_b2.x < min_b1.x);
+    const y_overlap = !(max_b1.y < min_b2.y or max_b2.y < min_b1.y);
+
+    return max_b1.z == min_b2.z - 1 and (x_overlap and y_overlap);
+}
+
 fn makeBricksFall(bricks: []Brick) void {
     // sort by z
     std.mem.sort(Brick, bricks, {}, cmpBrickZ);
@@ -174,152 +191,57 @@ fn makeBricksFall(bricks: []Brick) void {
     }
 }
 
-fn countSupporters(allocator: Allocator, bricks: []const Brick, i: usize) !usize {
-    var bitset = try std.DynamicBitSet.initEmpty(allocator, bricks.len);
-    defer bitset.deinit();
+fn countSupporters(bricks: []const Brick, i: usize) usize {
+    var result: usize = 0;
 
-    const mins = bricks[i].minVals();
-    const maxs = bricks[i].maxVals();
-
-    // holy code duplication
-    if (mins.x != maxs.x) {
-        for (mins.x..maxs.x + 1) |x| {
-            const below_pos = Pos3{
-                .x = x,
-                .y = mins.y,
-                .z = mins.z - 1,
-            };
-
-            const below_brick = Brick{
-                .begin = below_pos,
-                .end = below_pos,
-            };
-
-            for (0..i) |j| {
-                if (checkOverlap(below_brick, bricks[j])) {
-                    bitset.set(j);
-                }
-            }
-        }
-    } else if (mins.y != maxs.y) {
-        for (mins.y..maxs.y + 1) |y| {
-            const below_pos = Pos3{
-                .x = mins.x,
-                .y = y,
-                .z = mins.z - 1,
-            };
-
-            const below_brick = Brick{
-                .begin = below_pos,
-                .end = below_pos,
-            };
-
-            for (0..i) |j| {
-                if (checkOverlap(below_brick, bricks[j])) {
-                    bitset.set(j);
-                }
-            }
-        }
-    } else { // mins.z != maxs.z (or mins == maxs)
-        const below_pos = Pos3{
-            .x = mins.x,
-            .y = mins.y,
-            .z = mins.z - 1,
-        };
-
-        const below_brick = Brick{
-            .begin = below_pos,
-            .end = below_pos,
-        };
-
-        for (0..i) |j| {
-            if (checkOverlap(below_brick, bricks[j])) {
-                bitset.set(j);
-            }
+    for (0..i) |j| {
+        if (checkSupport(bricks[j], bricks[i])) {
+            result += 1;
         }
     }
 
-    return bitset.count();
+    return result;
 }
 
-fn countNonSupporting(allocator: Allocator, bricks: []const Brick) !usize {
+fn countNonSupporting(bricks: []const Brick) !usize {
     var result: usize = 0;
 
     outer: for (bricks, 0..) |brick, i| {
-        const mins = brick.minVals();
-        const maxs = brick.maxVals();
+        for (i + 1..bricks.len) |j| {
+            if (checkSupport(brick, bricks[j])) {
+                const supporters = countSupporters(bricks, j);
 
-        // holy code duplication again
-        if (mins.x != maxs.x) {
-            for (mins.x..maxs.x + 1) |x| {
-                const above_pos = Pos3{
-                    .x = x,
-                    .y = maxs.y,
-                    .z = maxs.z + 1,
-                };
-
-                const above_brick = Brick{
-                    .begin = above_pos,
-                    .end = above_pos,
-                };
-
-                for (i + 1..bricks.len) |j| {
-                    if (checkOverlap(above_brick, bricks[j])) {
-                        const supporters = try countSupporters(allocator, bricks, j);
-
-                        if (supporters == 1) {
-                            continue :outer;
-                        }
-                    }
-                }
-            }
-        } else if (mins.y != maxs.y) {
-            for (mins.y..maxs.y + 1) |y| {
-                const above_pos = Pos3{
-                    .x = maxs.x,
-                    .y = y,
-                    .z = maxs.z + 1,
-                };
-
-                const above_brick = Brick{
-                    .begin = above_pos,
-                    .end = above_pos,
-                };
-
-                for (i + 1..bricks.len) |j| {
-                    if (checkOverlap(above_brick, bricks[j])) {
-                        const supporters = try countSupporters(allocator, bricks, j);
-
-                        if (supporters == 1) {
-                            continue :outer;
-                        }
-                    }
-                }
-            }
-        } else { // mins.z != maxs.z (or mins == maxs)
-            const above_pos = Pos3{
-                .x = maxs.x,
-                .y = maxs.y,
-                .z = maxs.z + 1,
-            };
-
-            const above_brick = Brick{
-                .begin = above_pos,
-                .end = above_pos,
-            };
-
-            for (i + 1..bricks.len) |j| {
-                if (checkOverlap(above_brick, bricks[j])) {
-                    const supporters = try countSupporters(allocator, bricks, j);
-
-                    if (supporters == 1) {
-                        continue :outer;
-                    }
+                if (supporters == 1) {
+                    continue :outer;
                 }
             }
         }
 
         result += 1;
+    }
+
+    return result;
+}
+
+fn countChain(bricks: *std.ArrayList(Brick), brick: Brick, i: usize) usize {
+    var result: usize = 0;
+
+    var j: usize = i;
+    while (j < bricks.items.len) {
+        if (checkSupport(brick, bricks.items[j])) {
+            const supporters = countSupporters(bricks.items, j);
+
+            // we check for 0
+            // because the actual supporter was already removed by the caller
+            if (supporters == 0) {
+                result += 1;
+                const new_brick = bricks.orderedRemove(j);
+                result += countChain(bricks, new_brick, j);
+                continue;
+            }
+        }
+
+        j += 1;
     }
 
     return result;
@@ -331,13 +253,32 @@ fn part1(allocator: Allocator, input: []const u8) !usize {
 
     makeBricksFall(bricks);
 
-    return try countNonSupporting(allocator, bricks);
+    return countNonSupporting(bricks);
 }
 
 fn part2(allocator: Allocator, input: []const u8) !usize {
-    _ = allocator;
-    _ = input;
-    return 0;
+    const bricks = try parseInput(allocator, input);
+
+    makeBricksFall(bricks);
+
+    // in parseInput, we convert from an ArrayList to a slice
+    // now we convert back...kinda stupid but whatever
+    const bricks_list = std.ArrayList(Brick).fromOwnedSlice(allocator, bricks);
+    defer bricks_list.deinit();
+
+    var result: usize = 0;
+
+    for (0..bricks_list.items.len) |i| {
+        var bricks_clone = try bricks_list.clone();
+        defer bricks_clone.deinit();
+
+        const brick = bricks_clone.orderedRemove(i);
+
+        const chain = countChain(&bricks_clone, brick, i);
+        result += chain;
+    }
+
+    return result;
 }
 
 pub fn main() !void {
@@ -350,12 +291,10 @@ pub fn main() !void {
     defer allocator.free(input);
 
     const result_part1 = try part1(allocator, input);
+    try stdout.print("Part 1: {d}\n", .{result_part1});
+
     const result_part2 = try part2(allocator, input);
-
-    try stdout.print("Part 1: {d}\nPart 2: {d}\n", .{ result_part1, result_part2 });
-
-    // _ = stdin;
-    // try stdout.print("{d}\n", .{try part1(allocator, example)});
+    try stdout.print("Part 2: {d}\n", .{result_part2});
 }
 
 test "part 1 example" {
