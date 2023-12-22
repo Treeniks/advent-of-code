@@ -77,6 +77,35 @@ const Brick = struct {
             .z = max_z,
         };
     }
+
+    // returns true if the two boxes overlop
+    fn overlapsWith(self: Self, other: Brick) bool {
+        const min_b1 = self.minVals();
+        const max_b1 = self.maxVals();
+
+        const min_b2 = other.minVals();
+        const max_b2 = other.maxVals();
+
+        const x_overlap = !(max_b1.x < min_b2.x or max_b2.x < min_b1.x);
+        const y_overlap = !(max_b1.y < min_b2.y or max_b2.y < min_b1.y);
+        const z_overlap = !(max_b1.z < min_b2.z or max_b2.z < min_b1.z);
+
+        return x_overlap and y_overlap and z_overlap;
+    }
+
+    // returns true if self supports other
+    fn supports(self: Self, other: Brick) bool {
+        const min_b1 = self.minVals();
+        const max_b1 = self.maxVals();
+
+        const min_b2 = other.minVals();
+        const max_b2 = other.maxVals();
+
+        const x_overlap = !(max_b1.x < min_b2.x or max_b2.x < min_b1.x);
+        const y_overlap = !(max_b1.y < min_b2.y or max_b2.y < min_b1.y);
+
+        return max_b1.z == min_b2.z - 1 and (x_overlap and y_overlap);
+    }
 };
 
 const ParseError = error.ParseError;
@@ -136,35 +165,6 @@ fn cmpBrickZ(context: void, left: Brick, right: Brick) bool {
     }
 }
 
-// returns true if the two boxed overlop
-fn checkOverlap(b1: Brick, b2: Brick) bool {
-    const min_b1 = b1.minVals();
-    const max_b1 = b1.maxVals();
-
-    const min_b2 = b2.minVals();
-    const max_b2 = b2.maxVals();
-
-    const x_overlap = !(max_b1.x < min_b2.x or max_b2.x < min_b1.x);
-    const y_overlap = !(max_b1.y < min_b2.y or max_b2.y < min_b1.y);
-    const z_overlap = !(max_b1.z < min_b2.z or max_b2.z < min_b1.z);
-
-    return x_overlap and y_overlap and z_overlap;
-}
-
-// returns true if b1 supports b2
-fn checkSupport(b1: Brick, b2: Brick) bool {
-    const min_b1 = b1.minVals();
-    const max_b1 = b1.maxVals();
-
-    const min_b2 = b2.minVals();
-    const max_b2 = b2.maxVals();
-
-    const x_overlap = !(max_b1.x < min_b2.x or max_b2.x < min_b1.x);
-    const y_overlap = !(max_b1.y < min_b2.y or max_b2.y < min_b1.y);
-
-    return max_b1.z == min_b2.z - 1 and (x_overlap and y_overlap);
-}
-
 fn makeBricksFall(bricks: []Brick) void {
     // sort by z
     std.mem.sort(Brick, bricks, {}, cmpBrickZ);
@@ -180,7 +180,7 @@ fn makeBricksFall(bricks: []Brick) void {
             // check if we now have a collision with any brick below
             for (0..i) |j| {
                 const other = bricks[j];
-                if (checkOverlap(brick.*, other)) {
+                if (brick.overlapsWith(other)) {
                     brick.begin.z += 1;
                     brick.end.z += 1;
 
@@ -195,7 +195,7 @@ fn countSupporters(bricks: []const Brick, i: usize) usize {
     var result: usize = 0;
 
     for (0..i) |j| {
-        if (checkSupport(bricks[j], bricks[i])) {
+        if (bricks[j].supports(bricks[i])) {
             result += 1;
         }
     }
@@ -208,7 +208,7 @@ fn countNonSupporting(bricks: []const Brick) !usize {
 
     outer: for (bricks, 0..) |brick, i| {
         for (i + 1..bricks.len) |j| {
-            if (checkSupport(brick, bricks[j])) {
+            if (brick.supports(bricks[j])) {
                 const supporters = countSupporters(bricks, j);
 
                 if (supporters == 1) {
@@ -228,7 +228,7 @@ fn countChain(bricks: *std.ArrayList(Brick), brick: Brick, i: usize) usize {
 
     var j: usize = i;
     while (j < bricks.items.len) {
-        if (checkSupport(brick, bricks.items[j])) {
+        if (brick.supports(bricks.items[j])) {
             const supporters = countSupporters(bricks.items, j);
 
             // we check for 0
