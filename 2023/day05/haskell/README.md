@@ -3,8 +3,7 @@
 ## Run With Input
 
 ```sh
-stack build
-cat input.txt | stack exec day05-exe
+cat input.txt | stack run
 ```
 
 ## Run Tests
