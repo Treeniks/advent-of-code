@@ -49,7 +49,41 @@ where
     }
 }
 
+impl Grid<usize> {
+    pub fn try_from_usize(input: &str) -> Result<Self, Box<dyn Error>> {
+        struct UsizeTile(usize);
+
+        impl TryFrom<char> for UsizeTile {
+            type Error = Box<dyn Error>;
+
+            fn try_from(value: char) -> Result<Self, Self::Error> {
+                let digit = value
+                    .to_digit(10)
+                    .ok_or::<Box<dyn Error>>("not a digit".into())?;
+                let val = usize::try_from(digit)?;
+                Ok(UsizeTile(val))
+            }
+        }
+
+        Grid::<UsizeTile>::try_from(input).map(|grid| Self {
+            grid: grid.grid.iter().map(|t| t.0).collect(),
+            columns: grid.columns,
+            rows: grid.rows,
+        })
+    }
+}
+
 impl<T> Grid<T> {
+    pub fn new(grid: Vec<T>, rows: usize, columns: usize) -> Self {
+        assert!(rows * columns == grid.len());
+
+        Self {
+            grid,
+            rows,
+            columns,
+        }
+    }
+
     pub fn lines(&self) -> LinesIterator<T> {
         LinesIterator {
             grid: self,

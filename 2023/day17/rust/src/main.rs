@@ -1,102 +1,7 @@
 use std::collections::BinaryHeap;
 use std::io::Read;
-use std::ops::{Index, IndexMut};
 
-#[derive(Debug, Clone)]
-struct Grid {
-    grid: Vec<usize>,
-    rows: usize,
-    columns: usize,
-}
-
-impl Grid {
-    fn from_input(input: &str) -> Self {
-        let trimmed = input.trim();
-
-        let rows = trimmed.lines().count();
-
-        let first_line = trimmed.lines().next().unwrap();
-        let columns = first_line.len();
-
-        let mut grid = Vec::with_capacity(rows * columns);
-
-        for line in trimmed.lines() {
-            if line.len() != columns {
-                panic!("not a grid")
-            }
-
-            grid.extend(
-                line.chars()
-                    .map(|c| usize::try_from(c.to_digit(10).unwrap()).unwrap()),
-            );
-        }
-
-        Grid {
-            grid,
-            rows,
-            columns,
-        }
-    }
-
-    #[allow(unused)]
-    fn lines(&self) -> GridIterator {
-        GridIterator {
-            grid: self,
-            current_row: 0,
-        }
-    }
-
-    #[allow(unused)]
-    fn get(&self, (x, y): (usize, usize)) -> Option<usize> {
-        if x < self.columns && y < self.rows {
-            Some(self.grid[y * self.columns + x])
-        } else {
-            None
-        }
-    }
-
-    #[allow(unused)]
-    fn get_mut(&mut self, (x, y): (usize, usize)) -> Option<&mut usize> {
-        if x < self.columns && y < self.rows {
-            Some(&mut self.grid[y * self.columns + x])
-        } else {
-            None
-        }
-    }
-}
-
-struct GridIterator<'a> {
-    grid: &'a Grid,
-    current_row: usize,
-}
-
-impl<'a> Iterator for GridIterator<'a> {
-    type Item = &'a [usize];
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current_row < self.grid.rows {
-            let r = Some(&self.grid[self.current_row]);
-            self.current_row += 1;
-            return r;
-        } else {
-            None
-        }
-    }
-}
-
-impl Index<usize> for Grid {
-    type Output = [usize];
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.grid[index * self.columns..index * self.columns + self.columns]
-    }
-}
-
-impl IndexMut<usize> for Grid {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.grid[index * self.columns..index * self.columns + self.columns]
-    }
-}
+type Grid = utils::grid::Grid<usize>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Direction {
@@ -141,7 +46,7 @@ fn neighbours(
     max: usize,
     grid: &Grid,
 ) -> Vec<(usize, usize, Direction, usize)> {
-    let mut result = vec![];
+    let mut result = Vec::new();
 
     match dir {
         Direction::Vertical => {
@@ -153,7 +58,7 @@ fn neighbours(
                     }
                     result.push((x - i, y, Direction::Horizontal, cost));
                 }
-                if x + i < grid.columns {
+                if x + i < grid.columns() {
                     let mut cost = 0;
                     for j in 1..=i {
                         cost += grid[y][x + j];
@@ -171,7 +76,7 @@ fn neighbours(
                     }
                     result.push((x, y - i, Direction::Vertical, cost));
                 }
-                if y + i < grid.rows {
+                if y + i < grid.rows() {
                     let mut cost = 0;
                     for j in 1..=i {
                         cost += grid[y + j][x];
@@ -189,17 +94,16 @@ fn djikstra(grid: &Grid, min: usize, max: usize) -> usize {
     // basically copied from https://doc.rust-lang.org/std/collections/binary_heap/index.html
     // with some modifications to fit the context
     let mut heap = BinaryHeap::new();
-    let mut dist_horizontal = Grid {
-        grid: vec![usize::MAX; grid.grid.len()],
-        rows: grid.rows,
-        columns: grid.columns,
-    };
-
-    let mut dist_vertical = Grid {
-        grid: vec![usize::MAX; grid.grid.len()],
-        rows: grid.rows,
-        columns: grid.columns,
-    };
+    let mut dist_horizontal = Grid::new(
+        vec![usize::MAX; grid.grid().len()],
+        grid.rows(),
+        grid.columns(),
+    );
+    let mut dist_vertical = Grid::new(
+        vec![usize::MAX; grid.grid().len()],
+        grid.rows(),
+        grid.columns(),
+    );
 
     let neighbours_local =
         |x: usize, y: usize, dir: Direction| -> Vec<(usize, usize, Direction, usize)> {
@@ -217,7 +121,7 @@ fn djikstra(grid: &Grid, min: usize, max: usize) -> usize {
     }
 
     while let Some(State { x, y, cost, dir }) = heap.pop() {
-        if (x, y) == (grid.columns - 1, grid.rows - 1) {
+        if (x, y) == (grid.columns() - 1, grid.rows() - 1) {
             return cost;
         }
 
@@ -243,12 +147,12 @@ fn djikstra(grid: &Grid, min: usize, max: usize) -> usize {
 }
 
 fn part1(input: &str) -> usize {
-    let grid = Grid::from_input(input);
+    let grid = Grid::try_from_usize(input).unwrap();
     djikstra(&grid, 1, 3)
 }
 
 fn part2(input: &str) -> usize {
-    let grid = Grid::from_input(input);
+    let grid = Grid::try_from_usize(input).unwrap();
     djikstra(&grid, 4, 10)
 }
 
