@@ -78,7 +78,7 @@ const Brick = struct {
         };
     }
 
-    // returns true if the two boxes overlop
+    // returns true if the two boxes overlap
     fn overlapsWith(self: Self, other: Brick) bool {
         const min_b1 = self.minVals();
         const max_b1 = self.maxVals();
