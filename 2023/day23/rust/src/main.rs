@@ -1,31 +1,6 @@
 use std::io::Read;
 use std::ops::{Index, IndexMut};
 
-const EXAMPLE: &str = "#.#####################
-#.......#########...###
-#######.#########.#.###
-###.....#.>.>.###.#.###
-###v#####.#v#.###.#.###
-###.>...#.#.#.....#...#
-###v###.#.#.#########.#
-###...#.#.#.......#...#
-#####.#.#.#######.#.###
-#.....#.#.#.......#...#
-#.#####.#.#.#########v#
-#.#...#...#...###...>.#
-#.#.#v#######v###.###v#
-#...#.>.#...>.>.#.###.#
-#####v#.#.###v#.#.###.#
-#.....#...#...#.#.#...#
-#.#########.###.#.#.###
-#...###...#...#...#.###
-###.###.#.###v#####v###
-#...#...#.#.>.>.#.>.###
-#.###.###.#.###.#.#v###
-#.....###...###...#...#
-#####################.#
-";
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Direction {
     Up,
@@ -151,7 +126,7 @@ impl IndexMut<usize> for Grid {
     }
 }
 
-fn walk_path_part1(grid: Grid, (x, y): (usize, usize), path: usize, paths: &mut Vec<usize>) {
+fn walk_path_part1(grid: &mut Grid, (x, y): (usize, usize), path: usize, paths: &mut Vec<usize>) {
     if y == grid.rows - 1 {
         paths.push(path);
     }
@@ -159,9 +134,10 @@ fn walk_path_part1(grid: Grid, (x, y): (usize, usize), path: usize, paths: &mut 
     // check up
     match grid[y - 1][x] {
         Tile::Path | Tile::Slope(Direction::Up) => {
-            let mut clone = grid.clone();
-            clone[y - 1][x] = Tile::Walked;
-            walk_path_part1(clone, (x, y - 1), path + 1, paths);
+            let tile_before = grid[y - 1][x];
+            grid[y - 1][x] = Tile::Walked;
+            walk_path_part1(grid, (x, y - 1), path + 1, paths);
+            grid[y - 1][x] = tile_before;
         }
         _ => {}
     }
@@ -171,9 +147,10 @@ fn walk_path_part1(grid: Grid, (x, y): (usize, usize), path: usize, paths: &mut 
     if y + 1 < grid.rows {
         match grid[y + 1][x] {
             Tile::Path | Tile::Slope(Direction::Down) => {
-                let mut clone = grid.clone();
-                clone[y + 1][x] = Tile::Walked;
-                walk_path_part1(clone, (x, y + 1), path + 1, paths);
+                let tile_before = grid[y + 1][x];
+                grid[y + 1][x] = Tile::Walked;
+                walk_path_part1(grid, (x, y + 1), path + 1, paths);
+                grid[y + 1][x] = tile_before;
             }
             _ => {}
         }
@@ -182,9 +159,10 @@ fn walk_path_part1(grid: Grid, (x, y): (usize, usize), path: usize, paths: &mut 
     // check left
     match grid[y][x - 1] {
         Tile::Path | Tile::Slope(Direction::Left) => {
-            let mut clone = grid.clone();
-            clone[y][x - 1] = Tile::Walked;
-            walk_path_part1(clone, (x - 1, y), path + 1, paths);
+            let tile_before = grid[y][x - 1];
+            grid[y][x - 1] = Tile::Walked;
+            walk_path_part1(grid, (x - 1, y), path + 1, paths);
+            grid[y][x - 1] = tile_before;
         }
         _ => {}
     }
@@ -192,9 +170,10 @@ fn walk_path_part1(grid: Grid, (x, y): (usize, usize), path: usize, paths: &mut 
     // check right
     match grid[y][x + 1] {
         Tile::Path | Tile::Slope(Direction::Right) => {
-            let mut clone = grid.clone();
-            clone[y][x + 1] = Tile::Walked;
-            walk_path_part1(clone, (x + 1, y), path + 1, paths);
+            let tile_before = grid[y][x + 1];
+            grid[y][x + 1] = Tile::Walked;
+            walk_path_part1(grid, (x + 1, y), path + 1, paths);
+            grid[y][x + 1] = tile_before;
         }
         _ => {}
     }
@@ -268,7 +247,7 @@ fn part1(input: &str) -> usize {
     let (x, y) = (start_index, 1usize);
 
     let mut result = Vec::new();
-    walk_path_part1(grid, (x, y), 1, &mut result);
+    walk_path_part1(&mut grid, (x, y), 1, &mut result);
 
     *result.iter().max().unwrap()
 }
@@ -296,10 +275,55 @@ fn part2(input: &str) -> usize {
 fn main() -> Result<(), std::io::Error> {
     let mut input = String::new();
     let _ = std::io::stdin().read_to_string(&mut input)?;
-    // let input = EXAMPLE;
 
     println!("Part 1: {}", part1(&input));
     println!("Part 2: {}", part2(&input));
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EXAMPLE: &str = "#.#####################
+#.......#########...###
+#######.#########.#.###
+###.....#.>.>.###.#.###
+###v#####.#v#.###.#.###
+###.>...#.#.#.....#...#
+###v###.#.#.#########.#
+###...#.#.#.......#...#
+#####.#.#.#######.#.###
+#.....#.#.#.......#...#
+#.#####.#.#.#########v#
+#.#...#...#...###...>.#
+#.#.#v#######v###.###v#
+#...#.>.#...>.>.#.###.#
+#####v#.#.###v#.#.###.#
+#.....#...#...#.#.#...#
+#.#########.###.#.#.###
+#...###...#...#...#.###
+###.###.#.###v#####v###
+#...#...#.#.>.>.#.>.###
+#.###.###.#.###.#.#v###
+#.....###...###...#...#
+#####################.#
+";
+
+    #[test]
+    fn test_part1() {
+        let expected = 94;
+        let actual = part1(EXAMPLE);
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_part2() {
+        let expected = 154;
+        let actual = part2(EXAMPLE);
+
+        assert_eq!(expected, actual);
+    }
 }
