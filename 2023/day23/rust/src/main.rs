@@ -129,6 +129,7 @@ impl IndexMut<usize> for Grid {
 fn walk_path_part1(grid: &mut Grid, (x, y): (usize, usize), path: usize, paths: &mut Vec<usize>) {
     if y == grid.rows - 1 {
         paths.push(path);
+        return;
     }
 
     // check up
@@ -143,17 +144,14 @@ fn walk_path_part1(grid: &mut Grid, (x, y): (usize, usize), path: usize, paths: 
     }
 
     // check down
-    // I have no idea why I need this guard
-    if y + 1 < grid.rows {
-        match grid[y + 1][x] {
-            Tile::Path | Tile::Slope(Direction::Down) => {
-                let tile_before = grid[y + 1][x];
-                grid[y + 1][x] = Tile::Walked;
-                walk_path_part1(grid, (x, y + 1), path + 1, paths);
-                grid[y + 1][x] = tile_before;
-            }
-            _ => {}
+    match grid[y + 1][x] {
+        Tile::Path | Tile::Slope(Direction::Down) => {
+            let tile_before = grid[y + 1][x];
+            grid[y + 1][x] = Tile::Walked;
+            walk_path_part1(grid, (x, y + 1), path + 1, paths);
+            grid[y + 1][x] = tile_before;
         }
+        _ => {}
     }
 
     // check left
@@ -182,6 +180,7 @@ fn walk_path_part1(grid: &mut Grid, (x, y): (usize, usize), path: usize, paths: 
 fn walk_path_part2(grid: &mut Grid, (x, y): (usize, usize), path: usize, paths: &mut Vec<usize>) {
     if y == grid.rows - 1 {
         paths.push(path);
+        return;
     }
 
     // check up
@@ -196,17 +195,14 @@ fn walk_path_part2(grid: &mut Grid, (x, y): (usize, usize), path: usize, paths: 
     }
 
     // check down
-    // I have no idea why I need this guard
-    if y + 1 < grid.rows {
-        match grid[y + 1][x] {
-            Tile::Path | Tile::Slope(_) => {
-                let tile_before = grid[y + 1][x];
-                grid[y + 1][x] = Tile::Walked;
-                walk_path_part2(grid, (x, y + 1), path + 1, paths);
-                grid[y + 1][x] = tile_before;
-            }
-            _ => {}
+    match grid[y + 1][x] {
+        Tile::Path | Tile::Slope(_) => {
+            let tile_before = grid[y + 1][x];
+            grid[y + 1][x] = Tile::Walked;
+            walk_path_part2(grid, (x, y + 1), path + 1, paths);
+            grid[y + 1][x] = tile_before;
         }
+        _ => {}
     }
 
     // check left
