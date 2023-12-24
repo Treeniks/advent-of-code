@@ -1,6 +1,8 @@
 use itertools::Itertools;
 use std::{fmt::Display, io::Read, str::FromStr};
 
+const EPSILON: f64 = 0.0001;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Vec3 {
     x: f64,
@@ -38,12 +40,12 @@ impl Display for Vec3 {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-struct Path {
+struct Hailstone {
     start: Vec3,
     velocity: Vec3,
 }
 
-impl FromStr for Path {
+impl FromStr for Hailstone {
     type Err = String;
 
     fn from_str(line: &str) -> Result<Self, Self::Err> {
@@ -58,9 +60,9 @@ impl FromStr for Path {
     }
 }
 
-impl Path {
+impl Hailstone {
     fn intersect_xy(&self, other: &Self) -> (f64, f64, (f64, f64)) {
-        let Path {
+        let Hailstone {
             start:
                 Vec3 {
                     x: p1x,
@@ -75,7 +77,7 @@ impl Path {
                 },
         } = *self;
 
-        let Path {
+        let Hailstone {
             start:
                 Vec3 {
                     x: p2x,
@@ -99,31 +101,88 @@ impl Path {
 
         (t1, t2, (x, y))
     }
+
+    fn solve_part2(&self, other: &Self, vx: f64, vy: f64, vz: f64) -> Option<(f64, f64, Vec3)> {
+        let Hailstone {
+            start:
+                Vec3 {
+                    x: pax,
+                    y: pay,
+                    z: paz,
+                },
+            velocity:
+                Vec3 {
+                    x: vax,
+                    y: vay,
+                    z: vaz,
+                },
+        } = *self;
+
+        let Hailstone {
+            start:
+                Vec3 {
+                    x: pbx,
+                    y: pby,
+                    z: pbz,
+                },
+            velocity:
+                Vec3 {
+                    x: vbx,
+                    y: vby,
+                    z: vbz,
+                },
+        } = *other;
+
+        let t2_numerator = pby - pay - (((vay - vy) * (pbx - pax)) / (vax - vx));
+        let t2_denominator = vy - vby - (((vay - vy) * (vx - vbx)) / (vax - vx));
+
+        let t2 = t2_numerator / t2_denominator;
+
+        let t1 = (pbx - pax - t2 * (vx - vbx)) / (vax - vx);
+
+        let px = pax - t1 * (vx - vax);
+        let py = pay - t1 * (vy - vay);
+        let pz = paz - t1 * (vz - vaz);
+
+        // if (pz + t2 * (vz - vbz) - pbz).abs() > EPSILON {
+        //     None
+        // } else {
+        Some((
+            t1,
+            t2,
+            Vec3 {
+                x: px,
+                y: py,
+                z: pz,
+            },
+        ))
+        // }
+    }
 }
 
-impl Display for Path {
+impl Display for Hailstone {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} @ {}", self.start, self.velocity)
     }
 }
 
-fn parse_input(input: &str) -> Vec<Path> {
+fn parse_input(input: &str) -> Vec<Hailstone> {
     let line_count = input.trim().lines().count();
     let mut result = Vec::with_capacity(line_count);
 
     for line in input.trim().lines() {
-        result.push(line.parse::<Path>().unwrap())
+        result.push(line.parse::<Hailstone>().unwrap())
     }
 
     result
 }
 
 fn part1(input: &str, min: f64, max: f64) -> usize {
-    let paths = parse_input(input);
+    let hailstones = parse_input(input);
 
     let mut result = 0;
 
-    for (a, b) in paths.iter().tuple_combinations() {
+    for (a, b) in hailstones.iter().tuple_combinations() {
         let (t1, t2, (x, y)) = a.intersect_xy(b);
         if t1.is_sign_positive()
             && t2.is_sign_positive()
@@ -144,9 +203,78 @@ fn part1(input: &str, min: f64, max: f64) -> usize {
 }
 
 fn part2(input: &str) -> usize {
-    let _paths = parse_input(input);
+    let hailstones = parse_input(input);
 
-    0
+    let a = hailstones[0];
+    let b = hailstones[1];
+
+    let is_int = |f: f64| (f.round() as f64 - f).abs() < EPSILON;
+
+    'outer: for (vx, vy, vz) in (-500..500).tuple_combinations() {
+        let vx = vx as f64;
+        let vy = vy as f64;
+        let vz = vz as f64;
+
+        if let Some((
+            t1,
+            t2,
+            Vec3 {
+                x: px,
+                y: py,
+                z: pz,
+            },
+        )) = a.solve_part2(&b, vx, vy, vz)
+        {
+            if !(t1.is_finite()
+                && t2.is_finite()
+                && px.is_finite()
+                && py.is_finite()
+                && pz.is_finite())
+            {
+                continue;
+            }
+
+            if t1.is_sign_negative() || t2.is_sign_negative() {
+                continue;
+            }
+
+            if is_int(t1) && is_int(t2) && is_int(px) && is_int(py) && is_int(pz) {
+                // println!("{}, {}, {}", px, py, pz);
+                // return px as usize + py as usize + pz as usize;
+            }
+
+            for i in 2..3 {
+                let c = hailstones[i];
+
+                let Hailstone {
+                    start:
+                        Vec3 {
+                            x: pcx,
+                            y: pcy,
+                            z: pcz,
+                        },
+                    velocity:
+                        Vec3 {
+                            x: vcx,
+                            y: vcy,
+                            z: vcz,
+                        },
+                } = c;
+
+                let t3 = (pcx - px) / (vx - vcx);
+
+                if (py + t3 * vy - (pcy + t3 * vcy)).abs() > EPSILON
+                    || (pz + t3 * vz - (pcz + t3 * vcz)).abs() > EPSILON
+                {
+                    continue 'outer;
+                }
+            }
+
+            return px as usize + py as usize + pz as usize;
+        }
+    }
+
+    panic!("found no solution");
 }
 
 fn main() -> Result<(), std::io::Error> {
@@ -183,7 +311,7 @@ mod tests {
 
     #[test]
     fn test_part2() {
-        let expected = 0;
+        let expected = 47;
         let actual = part2(EXAMPLE);
 
         assert_eq!(expected, actual);
