@@ -101,63 +101,6 @@ impl Hailstone {
 
         (t1, t2, (x, y))
     }
-
-    fn solve_part2(&self, other: &Self, vx: f64, vy: f64, vz: f64) -> Option<(f64, f64, Vec3)> {
-        let Hailstone {
-            start:
-                Vec3 {
-                    x: pax,
-                    y: pay,
-                    z: paz,
-                },
-            velocity:
-                Vec3 {
-                    x: vax,
-                    y: vay,
-                    z: vaz,
-                },
-        } = *self;
-
-        let Hailstone {
-            start:
-                Vec3 {
-                    x: pbx,
-                    y: pby,
-                    z: pbz,
-                },
-            velocity:
-                Vec3 {
-                    x: vbx,
-                    y: vby,
-                    z: vbz,
-                },
-        } = *other;
-
-        let t2_numerator = pby - pay - (((vay - vy) * (pbx - pax)) / (vax - vx));
-        let t2_denominator = vy - vby - (((vay - vy) * (vx - vbx)) / (vax - vx));
-
-        let t2 = t2_numerator / t2_denominator;
-
-        let t1 = (pbx - pax - t2 * (vx - vbx)) / (vax - vx);
-
-        let px = pax - t1 * (vx - vax);
-        let py = pay - t1 * (vy - vay);
-        let pz = paz - t1 * (vz - vaz);
-
-        // if (pz + t2 * (vz - vbz) - pbz).abs() > EPSILON {
-        //     None
-        // } else {
-        Some((
-            t1,
-            t2,
-            Vec3 {
-                x: px,
-                y: py,
-                z: pz,
-            },
-        ))
-        // }
-    }
 }
 
 impl Display for Hailstone {
@@ -202,20 +145,48 @@ fn part1(input: &str, min: f64, max: f64) -> usize {
     result
 }
 
-fn part2(input: &str) -> usize {
-    let hailstones = parse_input(input);
+fn solve_part2(a: Hailstone, b: Hailstone, vx: f64, vy: f64, vz: f64) -> Option<(f64, f64, Vec3)> {
+    let Hailstone {
+        start: Vec3 {
+            x: pax,
+            y: pay,
+            z: paz,
+        },
+        velocity: Vec3 {
+            x: vax,
+            y: vay,
+            z: vaz,
+        },
+    } = a;
 
-    let a = hailstones[0];
-    let b = hailstones[1];
+    let Hailstone {
+        start: Vec3 {
+            x: pbx,
+            y: pby,
+            z: pbz,
+        },
+        velocity: Vec3 {
+            x: vbx,
+            y: vby,
+            z: vbz,
+        },
+    } = b;
 
-    let is_int = |f: f64| (f.round() as f64 - f).abs() < EPSILON;
+    let t2_numerator = pby - pay - (((vay - vy) * (pbx - pax)) / (vax - vx));
+    let t2_denominator = vy - vby - (((vay - vy) * (vx - vbx)) / (vax - vx));
 
-    'outer: for (vx, vy, vz) in (-500..500).tuple_combinations() {
-        let vx = vx as f64;
-        let vy = vy as f64;
-        let vz = vz as f64;
+    let t2 = t2_numerator / t2_denominator;
 
-        if let Some((
+    let t1 = (pbx - pax - t2 * (vx - vbx)) / (vax - vx);
+
+    let px = pax - t1 * (vx - vax);
+    let py = pay - t1 * (vy - vay);
+    let pz = paz - t1 * (vz - vaz);
+
+    if (pz + t2 * (vz - vbz) - pbz).abs() > EPSILON {
+        None
+    } else {
+        Some((
             t1,
             t2,
             Vec3 {
@@ -223,54 +194,81 @@ fn part2(input: &str) -> usize {
                 y: py,
                 z: pz,
             },
-        )) = a.solve_part2(&b, vx, vy, vz)
-        {
-            if !(t1.is_finite()
-                && t2.is_finite()
-                && px.is_finite()
-                && py.is_finite()
-                && pz.is_finite())
-            {
-                continue;
-            }
+        ))
+    }
+}
+fn part2(input: &str) -> usize {
+    let hailstones = parse_input(input);
 
-            if t1.is_sign_negative() || t2.is_sign_negative() {
-                continue;
-            }
+    let a = hailstones[0];
+    let b = hailstones[1];
 
-            if is_int(t1) && is_int(t2) && is_int(px) && is_int(py) && is_int(pz) {
-                // println!("{}, {}, {}", px, py, pz);
-                // return px as usize + py as usize + pz as usize;
-            }
+    let is_int = |f: f64| (f.round() - f).abs() < EPSILON;
 
-            for i in 2..3 {
-                let c = hailstones[i];
+    for vx in -500..500 {
+        for vy in -500..500 {
+            'outer: for vz in -500..500 {
+                let vx = vx as f64;
+                let vy = vy as f64;
+                let vz = vz as f64;
 
-                let Hailstone {
-                    start:
-                        Vec3 {
-                            x: pcx,
-                            y: pcy,
-                            z: pcz,
-                        },
-                    velocity:
-                        Vec3 {
-                            x: vcx,
-                            y: vcy,
-                            z: vcz,
-                        },
-                } = c;
-
-                let t3 = (pcx - px) / (vx - vcx);
-
-                if (py + t3 * vy - (pcy + t3 * vcy)).abs() > EPSILON
-                    || (pz + t3 * vz - (pcz + t3 * vcz)).abs() > EPSILON
+                if let Some((
+                    t1,
+                    t2,
+                    Vec3 {
+                        x: px,
+                        y: py,
+                        z: pz,
+                    },
+                )) = solve_part2(a, b, vx, vy, vz)
                 {
-                    continue 'outer;
+                    if !(t1.is_finite()
+                        && t2.is_finite()
+                        && px.is_finite()
+                        && py.is_finite()
+                        && pz.is_finite())
+                    {
+                        continue;
+                    }
+
+                    if t1.is_sign_negative() || t2.is_sign_negative() {
+                        continue;
+                    }
+
+                    if !(is_int(t1) && is_int(t2) && is_int(px) && is_int(py) && is_int(pz)) {
+                        continue;
+                    }
+
+                    for i in 2..hailstones.len() {
+                        let c = hailstones[i];
+
+                        let Hailstone {
+                            start:
+                                Vec3 {
+                                    x: pcx,
+                                    y: pcy,
+                                    z: pcz,
+                                },
+                            velocity:
+                                Vec3 {
+                                    x: vcx,
+                                    y: vcy,
+                                    z: vcz,
+                                },
+                        } = c;
+
+                        let t3 = (pcx - px) / (vx - vcx);
+
+                        if (py + t3 * vy - (pcy + t3 * vcy)).abs() > EPSILON
+                            || (pz + t3 * vz - (pcz + t3 * vcz)).abs() > EPSILON
+                        {
+                            continue 'outer;
+                        }
+                    }
+
+                    return px as usize + py as usize + pz as usize;
                 }
             }
-
-            return px as usize + py as usize + pz as usize;
         }
     }
 
