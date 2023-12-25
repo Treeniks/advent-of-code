@@ -1,21 +1,6 @@
 use rand::prelude::*;
 use std::{collections::HashSet, io::Read};
 
-const EXAMPLE: &str = "jqt: rhn xhk nvd
-rsh: frs pzl lsr
-xhk: hfx
-cmg: qnr nvd lhk bvb
-rhn: xhk bvb hfx
-bvb: xhk hfx
-pzl: lsr hfx nvd
-qnr: nvd
-ntq: jqt hfx bvb xhk
-nvd: lhk
-lsr: lhk
-rzs: qnr cmg lsr rsh
-frs: qnr lhk lsr
-";
-
 type Graph = (V, E);
 
 type V = HashSet<String>;
@@ -91,16 +76,11 @@ fn part1(input: &str) -> usize {
     }
 }
 
-fn part2(input: &str) -> usize {
-    0
-}
-
 fn main() -> Result<(), std::io::Error> {
     let mut input = String::new();
     let _ = std::io::stdin().read_to_string(&mut input)?;
 
     println!("Part 1: {}", part1(&input));
-    println!("Part 2: {}", part2(&input));
 
     Ok(())
 }
@@ -109,18 +89,25 @@ fn main() -> Result<(), std::io::Error> {
 mod tests {
     use super::*;
 
+    const EXAMPLE: &str = "jqt: rhn xhk nvd
+rsh: frs pzl lsr
+xhk: hfx
+cmg: qnr nvd lhk bvb
+rhn: xhk bvb hfx
+bvb: xhk hfx
+pzl: lsr hfx nvd
+qnr: nvd
+ntq: jqt hfx bvb xhk
+nvd: lhk
+lsr: lhk
+rzs: qnr cmg lsr rsh
+frs: qnr lhk lsr
+";
+
     #[test]
     fn test_part1() {
         let expected = 54;
         let actual = part1(EXAMPLE);
-
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn test_part2() {
-        let expected = 0;
-        let actual = part2(EXAMPLE);
 
         assert_eq!(expected, actual);
     }
