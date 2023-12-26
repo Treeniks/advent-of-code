@@ -19,14 +19,30 @@ where
     type Error = Box<dyn Error>;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        Self::try_from_with(input, |c| T::try_from(c).map_err(|e| e.into()))
+    }
+}
+
+impl Grid<usize> {
+    pub fn try_from_usize(input: &str) -> Result<Self, Box<dyn Error>> {
+        Self::try_from_with(input, |c| {
+            let digit = c.to_digit(10).ok_or("not a digit")?;
+            let val = usize::try_from(digit)?;
+            Ok(val)
+        })
+    }
+}
+
+impl<T> Grid<T> {
+    pub fn try_from_with<F>(input: &str, try_from: F) -> Result<Self, Box<dyn Error>>
+    where
+        F: Fn(char) -> Result<T, Box<dyn Error>>,
+    {
         let trimmed = input.trim();
 
         let rows = trimmed.lines().count();
 
-        let first_line = trimmed
-            .lines()
-            .next()
-            .ok_or::<Box<dyn Error>>("empty input".into())?;
+        let first_line = trimmed.lines().next().ok_or("empty input")?;
         let columns = first_line.len();
 
         let mut grid = Vec::with_capacity(rows * columns);
@@ -36,9 +52,12 @@ where
                 return Err("not a grid".into());
             }
 
-            let line: Result<Vec<_>, _> = line.chars().map(|c| T::try_from(c)).collect();
+            let line = line
+                .chars()
+                .map(|c| try_from(c))
+                .collect::<Result<Vec<_>, _>>()?;
 
-            grid.extend(line.map_err(|e| e.into())?);
+            grid.extend(line);
         }
 
         Ok(Grid {
@@ -47,33 +66,7 @@ where
             columns,
         })
     }
-}
 
-impl Grid<usize> {
-    pub fn try_from_usize(input: &str) -> Result<Self, Box<dyn Error>> {
-        struct UsizeTile(usize);
-
-        impl TryFrom<char> for UsizeTile {
-            type Error = Box<dyn Error>;
-
-            fn try_from(value: char) -> Result<Self, Self::Error> {
-                let digit = value
-                    .to_digit(10)
-                    .ok_or::<Box<dyn Error>>("not a digit".into())?;
-                let val = usize::try_from(digit)?;
-                Ok(UsizeTile(val))
-            }
-        }
-
-        Grid::<UsizeTile>::try_from(input).map(|grid| Self {
-            grid: grid.grid.iter().map(|t| t.0).collect(),
-            columns: grid.columns,
-            rows: grid.rows,
-        })
-    }
-}
-
-impl<T> Grid<T> {
     pub fn new(grid: Vec<T>, rows: usize, columns: usize) -> Self {
         assert!(rows * columns == grid.len());
 
