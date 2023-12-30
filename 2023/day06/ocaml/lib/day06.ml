@@ -26,7 +26,7 @@ let parse_input input parse_line =
       let t = parse_line linet in
       let d = parse_line lined in
       (t, d)
-  | _ -> raise (ParseError "too many or too little lines")
+  | _ -> raise (ParseError "too many or too few lines")
 
 let solver time distance =
   let t = float_of_int time in
