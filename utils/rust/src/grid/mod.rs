@@ -101,34 +101,52 @@ impl<T> Grid<T> {
     }
 
     pub fn get_row(&self, row: usize) -> Option<&[T]> {
-        if row < self.rows {
-            Some(&self.grid[row * self.columns..row * self.columns + self.columns])
-        } else {
-            None
-        }
+        self.grid
+            .get(row * self.columns..row * self.columns + self.columns)
     }
 
     pub fn get_row_mut(&mut self, row: usize) -> Option<&mut [T]> {
-        if row < self.rows {
-            Some(&mut self.grid[row * self.columns..row * self.columns + self.columns])
-        } else {
-            None
-        }
+        self.grid
+            .get_mut(row * self.columns..row * self.columns + self.columns)
     }
 
     pub fn get(&self, (x, y): (usize, usize)) -> Option<&T> {
-        if x < self.columns && y < self.rows {
-            Some(&self.grid[y * self.columns + x])
-        } else {
-            None
-        }
+        self.grid.get(y * self.columns + x)
     }
 
     pub fn get_mut(&mut self, (x, y): (usize, usize)) -> Option<&mut T> {
-        if x < self.columns && y < self.rows {
-            Some(&mut self.grid[y * self.columns + x])
-        } else {
-            None
+        self.grid.get_mut(y * self.columns + x)
+    }
+
+    pub fn get_row_isize(&self, row: isize) -> Option<&[T]> {
+        match usize::try_from(row) {
+            Ok(row) => self
+                .grid
+                .get(row * self.columns..row * self.columns + self.columns),
+            _ => None,
+        }
+    }
+
+    pub fn get_row_mut_isize(&mut self, row: isize) -> Option<&mut [T]> {
+        match usize::try_from(row) {
+            Ok(row) => self
+                .grid
+                .get_mut(row * self.columns..row * self.columns + self.columns),
+            _ => None,
+        }
+    }
+
+    pub fn get_isize(&self, (x, y): (isize, isize)) -> Option<&T> {
+        match (usize::try_from(x), usize::try_from(y)) {
+            (Ok(x), Ok(y)) => self.grid.get(y * self.columns + x),
+            _ => None,
+        }
+    }
+
+    pub fn get_mut_isize(&mut self, (x, y): (isize, isize)) -> Option<&mut T> {
+        match (usize::try_from(x), usize::try_from(y)) {
+            (Ok(x), Ok(y)) => self.grid.get_mut(y * self.columns + x),
+            _ => None,
         }
     }
 }
@@ -158,6 +176,34 @@ impl<T> Index<(usize, usize)> for Grid<T> {
 impl<T> IndexMut<(usize, usize)> for Grid<T> {
     fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
         self.get_mut(index).unwrap()
+    }
+}
+
+impl<T> Index<isize> for Grid<T> {
+    type Output = [T];
+
+    fn index(&self, row: isize) -> &Self::Output {
+        self.get_row_isize(row).unwrap()
+    }
+}
+
+impl<T> IndexMut<isize> for Grid<T> {
+    fn index_mut(&mut self, row: isize) -> &mut Self::Output {
+        self.get_row_mut_isize(row).unwrap()
+    }
+}
+
+impl<T> Index<(isize, isize)> for Grid<T> {
+    type Output = T;
+
+    fn index(&self, index: (isize, isize)) -> &Self::Output {
+        self.get_isize(index).unwrap()
+    }
+}
+
+impl<T> IndexMut<(isize, isize)> for Grid<T> {
+    fn index_mut(&mut self, index: (isize, isize)) -> &mut Self::Output {
+        self.get_mut_isize(index).unwrap()
     }
 }
 
