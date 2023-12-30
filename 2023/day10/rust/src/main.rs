@@ -105,8 +105,9 @@ fn find_and_replace_s(grid: &mut Grid) -> (usize, usize) {
     (x, y)
 }
 
-fn find_loop(grid: &Grid, start: (usize, usize)) -> Vec<(usize, usize)> {
-    let mut result = vec![start];
+fn find_loop(grid: &Grid, start: (usize, usize)) -> (Vec<(usize, usize)>, Vec<Tile>) {
+    let mut coords = vec![start];
+    let mut tiles = vec![grid[start]];
 
     let neighbour = |dir, (x, y)| match dir {
         // -1 cannot underflow here
@@ -125,7 +126,9 @@ fn find_loop(grid: &Grid, start: (usize, usize)) -> Vec<(usize, usize)> {
     };
 
     while (x, y) != start {
-        result.push((x, y));
+        coords.push((x, y));
+        tiles.push(grid[(x, y)]);
+
         let (n1, n2) = match grid[(x, y)] {
             Tile::Pipe(d1, d2) => {
                 let n1 = neighbour(d1, (x, y));
@@ -145,7 +148,7 @@ fn find_loop(grid: &Grid, start: (usize, usize)) -> Vec<(usize, usize)> {
         }
     }
 
-    result
+    (coords, tiles)
 }
 
 fn part1(input: &str) -> usize {
@@ -153,7 +156,7 @@ fn part1(input: &str) -> usize {
 
     let start = find_and_replace_s(&mut grid);
 
-    let l = find_loop(&grid, start);
+    let (l, _) = find_loop(&grid, start);
 
     l.len() / 2
 }
@@ -163,18 +166,22 @@ fn part2(input: &str) -> usize {
 
     let start = find_and_replace_s(&mut grid);
 
-    let l = find_loop(&grid, start);
+    let (cs, ts) = find_loop(&grid, start);
 
     // convert all non-loop pipes into ground tiles
-    for y in 0..grid.rows() {
-        for x in 0..grid.columns() {
-            if !l.contains(&(x, y)) {
-                grid[(x, y)] = Tile::Ground;
-            }
-        }
+    //
+    // first convert everything to ground
+    for tile in grid.grid_mut().iter_mut() {
+        *tile = Tile::Ground;
+    }
+
+    // then convert every pipe in the loop back
+    for (coord, tile) in cs.into_iter().zip(ts) {
+        grid[coord] = tile;
     }
 
     // convert all inner tiles to Tile::Inner
+    // (and all outer tiles to Tile::Outer)
     for y in 0..grid.rows() {
         let mut inside = false;
         let mut prev_dir = Direction::Up;
