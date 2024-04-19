@@ -4,16 +4,16 @@ build_command := if os_family() == "windows" {
     "cd build && cmake .. && make"
 }
 
-build:
-    mkdir -p build
-    {{build_command}}
-    cp build/compile_commands.json .
-
 run: build
     build/day10
 
 test: build
     build/day10_test
+
+build:
+    mkdir -p build
+    {{build_command}}
+    cp build/compile_commands.json .
 
 clean:
     rm -rf build
