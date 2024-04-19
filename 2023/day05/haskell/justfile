@@ -1,0 +1,8 @@
+run:
+    stack run
+
+test:
+    stack test
+
+clean:
+    stack clean --full

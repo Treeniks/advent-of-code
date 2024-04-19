@@ -1,0 +1,8 @@
+run:
+    dune exec day14
+
+test:
+    dune test
+
+clean:
+    dune clean

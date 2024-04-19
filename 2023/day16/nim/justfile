@@ -1,0 +1,8 @@
+run:
+    nimble run -d:release
+
+test:
+    nimble test
+
+clean:
+    nimble clean

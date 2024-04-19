@@ -1,0 +1,9 @@
+run:
+    zig build run -Doptimize=ReleaseSafe
+
+test:
+    zig build test
+
+clean:
+    rm -rf zig-out
+    rm -rf zig-cache

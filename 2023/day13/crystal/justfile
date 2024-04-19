@@ -1,0 +1,5 @@
+run:
+    shards run
+
+test:
+    crystal spec
