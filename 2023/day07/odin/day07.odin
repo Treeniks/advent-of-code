@@ -3,6 +3,8 @@ package main
 import "core:fmt"
 import "core:os"
 
+import "core:testing"
+
 HAND_LENGTH :: 5
 
 HandType :: enum {
@@ -65,4 +67,38 @@ main :: proc() {
         return
     }
     fmt.println("Part 2:", p2)
+}
+
+@(test)
+test_part1 :: proc(t: ^testing.T) {
+    input :: `32T3K 765
+T55J5 684
+KK677 28
+KTJJT 220
+QQQJA 483
+`
+
+    p1, err1 := part1(input)
+    if err1 != nil {
+        testing.fail_now(t)
+    }
+
+    testing.expect_value(t, p1, 6440)
+}
+
+@(test)
+test_part2 :: proc(t: ^testing.T) {
+    input :: `32T3K 765
+T55J5 684
+KK677 28
+KTJJT 220
+QQQJA 483
+`
+
+    p2, err2 := part2(input)
+    if err2 != nil {
+        testing.fail_now(t)
+    }
+
+    testing.expect_value(t, p2, 5905)
 }
