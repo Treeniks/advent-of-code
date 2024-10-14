@@ -8,7 +8,7 @@ const ColorMap = struct {
         ColorError,
     };
 
-    const map = std.ComptimeStringMap(usize, .{
+    const map = std.StaticStringMap(usize).initComptime(.{
         .{ "blue", 0 },
         .{ "green", 1 },
         .{ "red", 2 },

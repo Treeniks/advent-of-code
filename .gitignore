@@ -15,7 +15,7 @@ target/
 
 # Zig
 zig-out/
-zig-cache/
+.zig-cache/
 
 # Ocaml
 _build/
