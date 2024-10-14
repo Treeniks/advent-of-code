@@ -6,6 +6,7 @@ bug-reports: "https://github.com/Treeniks/advent-of-code/issues"
 depends: [
   "ocaml"
   "dune" {>= "3.12"}
+  "ppx_inline_test"
   "odoc" {with-doc}
 ]
 build: [
