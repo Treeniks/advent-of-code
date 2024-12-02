@@ -4,10 +4,10 @@ run: build
 build: assemble-main assemble-utils link
 
 assemble-main:
-    nasm -f elf64 -o day01.o day01.s
+    nasm -f elf64 -o day01.o day01.asm
 
 assemble-utils:
-    nasm -f elf64 -o day01_utils.o day01_utils.s
+    nasm -f elf64 -o day01_utils.o day01_utils.asm
 
 link:
     ld --output day01 -x --pie day01.o day01_utils.o -lc --dynamic-linker /lib/ld-linux-x86-64.so.2
