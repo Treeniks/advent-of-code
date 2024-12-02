@@ -1,6 +1,7 @@
 global _start
 global trim
 global sort
+global count_occurance
 
 extern fopen
 extern getline
@@ -24,6 +25,7 @@ section .rodata
     pf2: db "%ld", 0x0A, 0x00
 
     pf_part1: db "part 1: %ld", 0x0A, 0x00
+    pf_part2: db "part 2: %ld", 0x0A, 0x00
 
 section .bss
     getline_lineptr: dq ?
@@ -129,6 +131,30 @@ sort:
     .Lloop_begin:
         cmp rsi, rcx
         jg .Lloop
+    ret
+
+
+; counts how many times the value in rdi appears in the array in rsi
+; and quits once it finds a value larger than rdi (i.e. we assume rsi is sorted)
+; rdi: i64 value
+; rsi: i64[] array
+; rdx: array length
+; return rax: count
+count_occurance:
+    xor eax, eax
+    lea rcx, [rsi + rdx*8] ; last element's addr, used for bounds check
+    jmp .Lloop_begin
+    .Lloop:
+        lea r8, [rax + 1]
+        cmp rdi, [rsi]
+        cmove rax, r8
+        jl .Lend
+
+        add rsi, 8
+    .Lloop_begin:
+        cmp rcx, rsi
+        jge .Lloop
+    .Lend:
     ret
 
 
@@ -261,9 +287,10 @@ _start:
     ;     cmp rbx, rax
     ;     jg .Lprintloop
 
-    ; actually solve the task
+    ; solve part 1
     xor eax, eax ; index
     xor esi, esi ; result
+    jmp .Ldistance_loop_begin
     .Ldistance_loop:
         mov rcx, [r12 + rax*8]
         mov rdx, [r13 + rax*8]
@@ -282,8 +309,35 @@ _start:
         jg .Ldistance_loop
 
 
-    ; print out the result
+    ; print out the result of part 1
     lea rdi, [rel pf_part1]
+    call printf wrt ..plt
+
+
+    ; solve part 2
+    xor r14d, r14d ; index
+    xor r15d, r15d ; result
+    jmp .Loccurance_loop_begin
+    .Loccurance_loop:
+        mov rbp, [r12 + r14*8]
+
+        mov rdi, rbp
+        mov rsi, r13
+        mov rdx, rbx
+        call count_occurance
+
+        imul rbp, rax
+        add r15, rbp
+
+        inc r14
+    .Loccurance_loop_begin:
+        cmp rbx, r14
+        jg .Loccurance_loop
+
+
+    ; print out the result of part 2
+    lea rdi, [rel pf_part2]
+    mov rsi, r15
     call printf wrt ..plt
 
 
