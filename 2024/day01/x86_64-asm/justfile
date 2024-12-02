@@ -1,0 +1,14 @@
+run: build
+    ./day01
+
+build: assemble link
+
+assemble:
+    nasm -f elf64 -o day01.o day01.s
+
+link:
+    ld --output day01 -x --pie --dynamic-linker /lib/ld-linux-x86-64.so.2 -lc day01.o
+
+clean:
+    rm -f day01.o
+    rm -f day01
