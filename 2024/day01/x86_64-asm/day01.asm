@@ -7,6 +7,7 @@ extern count_occurance
 extern fopen
 extern getline
 extern printf
+extern puts
 
 extern calloc
 extern free
@@ -25,6 +26,8 @@ section .rodata
 
     pf_part1: db "part 1: %ld", 0x0A, 0x00
     pf_part2: db "part 2: %ld", 0x0A, 0x00
+
+    no_file: db "could not find file 'input.txt'", 0x00
 
 section .bss
     getline_lineptr: dq ?
@@ -60,6 +63,15 @@ _start:
     lea rdi, [rel input_file]
     lea rsi, [rel input_file_mode]
     call fopen wrt ..plt
+
+    test rax, rax ; check if the file existed
+    jne .Lfile_exists
+
+    lea rdi, [rel no_file]
+    call puts wrt ..plt
+    jmp .Lexit
+
+    .Lfile_exists:
 
     mov r14, rax ; FILE*
 
@@ -225,7 +237,7 @@ _start:
     mov rdi, r13
     call free wrt ..plt
 
-    ; exit
+    .Lexit:
     mov rax, 60
     mov rdi, 0
     syscall
