@@ -1,5 +1,13 @@
-run: build
-    ./day01 input.txt
+alias r := run
+alias b := build
+
+alias rt := run-test
+alias bt := build-test
+
+alias c := clean
+
+run input="input.txt": build
+    ./day01 {{ input }}
 
 build: assemble-main assemble-utils link
 
