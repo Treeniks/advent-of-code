@@ -68,18 +68,11 @@ _start:
     call fopen wrt ..plt
 
      ; check if the file existed
-    test rax, rax
-    jne .Lfile_exists
-
-    lea rdi, [rel no_file]
-    call puts wrt ..plt
-    jmp .Lexit
-
-    .Lfile_exists:
+    test eax, eax
+    je .Lno_file_error
 
     mov r14, rax ; FILE*
-
-    xor rbx, rbx ; will contain our current index in left_vals/right_vals
+    xor ebx, ebx ; will contain our current index in left_vals/right_vals
 
     .Lgetline_loop:
         ; get line from input file
@@ -270,4 +263,14 @@ _start:
     .Lexit:
     mov rax, 60
     mov rdi, 0
+    syscall
+
+    .Lno_file_error:
+    lea rdi, [rel no_file]
+    call puts wrt ..plt
+    jmp .Lexit_err
+
+    .Lexit_err:
+    mov rax, 60
+    mov rdi, 1
     syscall
