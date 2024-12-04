@@ -18,7 +18,7 @@ assemble-utils:
     nasm -f elf64 -o day01_utils.o day01_utils.asm
 
 link:
-    ld --output day01 -x -pie -z relro -z now day01.o day01_utils.o -lc --dynamic-linker /lib/ld-linux-x86-64.so.2
+    ld --output day01 -x -pie -z relro -z now -z noexecstack day01.o day01_utils.o -lc --dynamic-linker /lib/ld-linux-x86-64.so.2
 
 run-test: build-test
     ./test
