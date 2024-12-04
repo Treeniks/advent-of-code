@@ -43,13 +43,10 @@ section .bss
 section .text
 
 _start:
-    ; TODO: currently, it just statically allocated 0x1000 for the value array
-    ; meaning an array longer than that will fuck up everything
-    ; we should really dynamically resize it for a good solution, but this gives us the correct answer at least
-
     ; allocate left_vals and right_vals
-    ; starting with size 0x1000
+    ; starting with size 0x100
     mov rbp, 0x100 ; rbp will always contain the size of the allocated area
+    ; will get resized if needed
 
     mov rdi, 0x8
     mov rsi, rbp
