@@ -3,6 +3,7 @@ extern sort
 extern count_occurance
 
 extern fopen
+extern fclose
 extern getline
 extern printf
 extern fprintf
@@ -51,15 +52,20 @@ global _start
     call free wrt ..plt
 %endmacro
 
-%macro exit_err 0
-    mov rdi, 1
-    call exit wrt ..plt
+%macro close_file 0
+    mov rdi, r14
+    call fclose wrt ..plt
 %endmacro
 
 %macro print_simple_err 1
     mov rdi, [rel stderr]
     lea rsi, [rel %1]
     call fprintf wrt ..plt
+%endmacro
+
+%macro exit_err 0
+    mov rdi, 1
+    call exit wrt ..plt
 %endmacro
 
 _start:
@@ -102,6 +108,7 @@ _start:
     test eax, eax
     jnz .Lalloc_error_skip1
         print_simple_err alloc_failed
+        close_file
         exit_err
     .Lalloc_error_skip1:
     mov r12, rax ; left_vals*
@@ -116,6 +123,7 @@ _start:
         call free wrt ..plt
 
         print_simple_err alloc_failed
+        close_file
         exit_err
     .Lalloc_error_skip2:
     mov r13, rax ; right_vals*
@@ -150,6 +158,7 @@ _start:
         jnz .Lincorrect_file_format_skip1
             free_left_right_vals
             print_simple_err incorrect_file
+            close_file
             exit_err
         .Lincorrect_file_format_skip1:
 
@@ -186,6 +195,7 @@ _start:
             jnz .Lrealloc_error_skip1
                 free_left_right_vals
                 print_simple_err alloc_failed
+                close_file
                 exit_err
             .Lrealloc_error_skip1:
 
@@ -199,6 +209,7 @@ _start:
             jnz .Lrealloc_error_skip2
                 free_left_right_vals
                 print_simple_err alloc_failed
+                close_file
                 exit_err
             .Lrealloc_error_skip2:
 
@@ -218,6 +229,7 @@ _start:
         jnz .Lincorrect_file_format_skip2
             free_left_right_vals
             print_simple_err incorrect_file
+            close_file
             exit_err
         .Lincorrect_file_format_skip2:
 
@@ -285,6 +297,7 @@ _start:
 
 
     ; solve part 2
+    push r14
     xor r14d, r14d ; index
     xor r15d, r15d ; result
     jmp .Loccurance_loop_begin
@@ -305,7 +318,7 @@ _start:
     .Loccurance_loop_begin:
         cmp rbx, r14
         jg .Loccurance_loop
-
+    pop r14
 
     ; print out the result of part 2
     lea rdi, [rel pf_part2]
@@ -314,10 +327,8 @@ _start:
 
 
     ; free left_vals and right_vals
-    mov rdi, r12
-    call free wrt ..plt
-    mov rdi, r13
-    call free wrt ..plt
+    free_left_right_vals
+    close_file
 
     ; we call glibc exit instead of using syscalls
     ; because otherwise the prints seem to not get flushed properly
