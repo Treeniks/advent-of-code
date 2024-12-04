@@ -29,6 +29,8 @@ section .rodata
     pf_part2: db "part 2: %ld", 0x0A, 0x00
 
     no_file: db "could not find file 'input.txt'", 0x00
+    incorrect_file: db "incorrect file format", 0x00
+    alloc_failed: db "failed to allocate memory", 0x00
 
 section .bss
     getline_lineptr: dq ?
@@ -52,11 +54,17 @@ _start:
     mov rdi, 0x8
     mov rsi, rbp
     call calloc wrt ..plt
+    test eax, eax
+    je .Lalloc_error
+
     mov [rel left_vals], rax
 
     mov rdi, 0x8
     mov rsi, rbp
     call calloc wrt ..plt
+    test eax, eax
+    je .Lalloc_error
+
     mov [rel right_vals], rax
 
     mov r12, [rel left_vals]    ; left_vals*
@@ -84,6 +92,7 @@ _start:
         cmp rax, -1
         je .Lgetline_loop_end
 
+        ; trim the line (needed primarily for the emtpy check)
         mov rdi, [rel getline_lineptr]
         call trim
         mov r15, rax
@@ -93,12 +102,12 @@ _start:
         test dil, dil
         je .Lgetline_loop
 
-        ; TODO: neither strtok nor strtoll errors are checked here
-
         ; == get left number
         mov rdi, r15
         lea rsi, [rel delim]
         call strtok wrt ..plt
+        test eax, eax
+        je .Lincorrect_file_format_error
 
         ; rax now contains a pointer to the line's left value (char*)
 
@@ -107,6 +116,9 @@ _start:
         mov rsi, 0
         mov rdx, 10
         call strtoll wrt ..plt
+        ; strtoll ignores all non-digits for us
+        ; so we don't exactly need error handling
+
         ; rax now contains line's left value (i64)
 
         ; update left_vals
@@ -125,12 +137,18 @@ _start:
             mov rsi, 8
             mov rdx, rbp
             call reallocarray wrt ..plt
+            test eax, eax
+            je .Lalloc_error
+
             mov r12, rax
 
             mov rdi, r13
             mov rsi, 8
             mov rdx, rbp
             call reallocarray wrt ..plt
+            test eax, eax
+            je .Lalloc_error
+
             mov r13, rax
 
             pop rax
@@ -143,6 +161,8 @@ _start:
         mov rdi, 0
         lea rsi, [rel delim]
         call strtok wrt ..plt
+        test eax, eax
+        je .Lincorrect_file_format_error
 
         ; rax now contains a pointer to the line's right value (char*)
 
@@ -260,7 +280,7 @@ _start:
     mov rdi, r13
     call free wrt ..plt
 
-    .Lexit:
+    ; exit
     mov rax, 60
     mov rdi, 0
     syscall
@@ -270,7 +290,25 @@ _start:
     call puts wrt ..plt
     jmp .Lexit_err
 
+    .Lincorrect_file_format_error:
+    lea rdi, [rel incorrect_file]
+    call puts wrt ..plt
+    jmp .Lexit_err
+
+    .Lalloc_error:
+    lea rdi, [rel alloc_failed]
+    call puts wrt ..plt
+    jmp .Lexit_err_no_free
+
     .Lexit_err:
+    ; free left_vals and right_vals
+    mov rdi, r12
+    call free wrt ..plt
+    mov rdi, r13
+    call free wrt ..plt
+
+    .Lexit_err_no_free:
+    ; exit
     mov rax, 60
     mov rdi, 1
     syscall
