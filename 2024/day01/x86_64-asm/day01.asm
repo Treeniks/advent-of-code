@@ -1,5 +1,3 @@
-global _start
-
 extern trim
 extern sort
 extern count_occurance
@@ -7,7 +5,8 @@ extern count_occurance
 extern fopen
 extern getline
 extern printf
-extern puts
+extern fprintf
+extern stderr
 
 extern calloc
 extern reallocarray
@@ -15,6 +14,8 @@ extern free
 
 extern strtok
 extern strtoll
+
+extern exit
 
 section .rodata
     input_file: db "input.txt", 0x00
@@ -28,21 +29,68 @@ section .rodata
     pf_part1: db "part 1: %ld", 0x0A, 0x00
     pf_part2: db "part 2: %ld", 0x0A, 0x00
 
-    no_file: db "could not find file 'input.txt'", 0x00
-    incorrect_file: db "incorrect file format", 0x00
-    alloc_failed: db "failed to allocate memory", 0x00
+    no_file: db "could not find file '%s'", 0x0A, 0x00
+    incorrect_file: db "incorrect file format", 0x0A, 0x00
+    alloc_failed: db "failed to allocate memory", 0x0A, 0x00
+
+    usage: db "usage: day01 [INPUT_FILE]", 0x0A, 0x00
 
 section .bss
     getline_lineptr: dq ?
     getline_n: dq ?
 
-    left_vals: dq ?     ; i64[]
-    right_vals: dq ?    ; i64[]
-
 
 section .text
 
+global _start
+
+%macro free_left_right_vals 0
+    mov rdi, r12
+    call free wrt ..plt
+    mov rdi, r13
+    call free wrt ..plt
+%endmacro
+
+%macro exit_err 0
+    mov rdi, 1
+    call exit wrt ..plt
+%endmacro
+
+%macro print_simple_err 1
+    mov rdi, [rel stderr]
+    lea rsi, [rel %1]
+    call fprintf wrt ..plt
+%endmacro
+
 _start:
+    ; technically need to sub rsp, 0x8?
+    ; but doesn't seem to matter so whatever
+
+    ; [rsp]: argc
+    ; [rsp+16]: argv[1]
+    mov rdi, [rsp]
+    cmp rdi, 2
+    je .Lusage_error_skip
+        print_simple_err usage
+        exit_err
+    .Lusage_error_skip:
+
+    ; open input file
+    mov rdi, [rsp + 16]
+    mov r15, rdi ; used for the error case when the file doesn't exist
+    lea rsi, [rel input_file_mode]
+    call fopen wrt ..plt
+
+    ; check if the file existed
+    test eax, eax
+    jnz .Lno_file_error_skip
+        mov rdx, r15
+        print_simple_err no_file
+        exit_err
+    .Lno_file_error_skip:
+
+    mov r14, rax ; FILE*
+
     ; allocate left_vals and right_vals
     ; starting with size 0x100
     mov rbp, 0x100 ; rbp will always contain the size of the allocated area
@@ -52,31 +100,26 @@ _start:
     mov rsi, rbp
     call calloc wrt ..plt
     test eax, eax
-    je .Lalloc_error
-
-    mov [rel left_vals], rax
+    jnz .Lalloc_error_skip1
+        print_simple_err alloc_failed
+        exit_err
+    .Lalloc_error_skip1:
+    mov r12, rax ; left_vals*
 
     mov rdi, 0x8
     mov rsi, rbp
     call calloc wrt ..plt
     test eax, eax
-    je .Lalloc_error
+    jnz .Lalloc_error_skip2
+        ; if only the second calloc fails, we need to free the first
+        mov rdi, r12
+        call free wrt ..plt
 
-    mov [rel right_vals], rax
+        print_simple_err alloc_failed
+        exit_err
+    .Lalloc_error_skip2:
+    mov r13, rax ; right_vals*
 
-    mov r12, [rel left_vals]    ; left_vals*
-    mov r13, [rel right_vals]   ; right_vals*
-
-    ; open input file
-    lea rdi, [rel input_file]
-    lea rsi, [rel input_file_mode]
-    call fopen wrt ..plt
-
-     ; check if the file existed
-    test eax, eax
-    je .Lno_file_error
-
-    mov r14, rax ; FILE*
     xor ebx, ebx ; will contain our current index in left_vals/right_vals
 
     .Lgetline_loop:
@@ -97,14 +140,18 @@ _start:
         ; check for empty line
         mov dil, byte [r15]
         test dil, dil
-        je .Lgetline_loop
+        jz .Lgetline_loop
 
         ; == get left number
         mov rdi, r15
         lea rsi, [rel delim]
         call strtok wrt ..plt
         test eax, eax
-        je .Lincorrect_file_format_error
+        jnz .Lincorrect_file_format_skip1
+            free_left_right_vals
+            print_simple_err incorrect_file
+            exit_err
+        .Lincorrect_file_format_skip1:
 
         ; rax now contains a pointer to the line's left value (char*)
 
@@ -115,6 +162,7 @@ _start:
         call strtoll wrt ..plt
         ; strtoll ignores all non-digits for us
         ; so we don't exactly need error handling
+        ; (idc about overflow cases)
 
         ; rax now contains line's left value (i64)
 
@@ -135,7 +183,11 @@ _start:
             mov rdx, rbp
             call reallocarray wrt ..plt
             test eax, eax
-            je .Lalloc_error
+            jnz .Lrealloc_error_skip1
+                free_left_right_vals
+                print_simple_err alloc_failed
+                exit_err
+            .Lrealloc_error_skip1:
 
             mov r12, rax
 
@@ -144,7 +196,11 @@ _start:
             mov rdx, rbp
             call reallocarray wrt ..plt
             test eax, eax
-            je .Lalloc_error
+            jnz .Lrealloc_error_skip2
+                free_left_right_vals
+                print_simple_err alloc_failed
+                exit_err
+            .Lrealloc_error_skip2:
 
             mov r13, rax
 
@@ -159,7 +215,11 @@ _start:
         lea rsi, [rel delim]
         call strtok wrt ..plt
         test eax, eax
-        je .Lincorrect_file_format_error
+        jnz .Lincorrect_file_format_skip2
+            free_left_right_vals
+            print_simple_err incorrect_file
+            exit_err
+        .Lincorrect_file_format_skip2:
 
         ; rax now contains a pointer to the line's right value (char*)
 
@@ -171,6 +231,7 @@ _start:
         ; rax now contains line's right value (i64)
 
         ; update right_vals
+        ; no need to resize as left_vals and right_vals will always be the same size
         mov [r13 + rbx*8], rax
 
 
@@ -195,25 +256,6 @@ _start:
     mov rdi, r13
     mov rsi, rbx
     call sort
-
-    ; print out left values
-    ; replace r12 with r13 to print out right values
-    ; xor eax, eax
-    ; jmp .Lprintloop_begin
-    ; .Lprintloop:
-    ;     lea rdi, [rel pf2]
-    ;     mov rsi, [r12 + rax*8]
-    ;
-    ;     push rax
-    ;     sub rsp, 8
-    ;     call printf wrt ..plt
-    ;     add rsp, 0x8
-    ;     pop rax
-    ;
-    ;     inc rax
-    ; .Lprintloop_begin:
-    ;     cmp rbx, rax
-    ;     jg .Lprintloop
 
     ; solve part 1
     xor eax, eax ; index
@@ -277,35 +319,8 @@ _start:
     mov rdi, r13
     call free wrt ..plt
 
-    ; exit
-    mov rax, 60
+    ; we call glibc exit instead of using syscalls
+    ; because otherwise the prints seem to not get flushed properly
+    ; e.g. when using `./day01 > out.txt`
     mov rdi, 0
-    syscall
-
-    .Lno_file_error:
-    lea rdi, [rel no_file]
-    call puts wrt ..plt
-    jmp .Lexit_err
-
-    .Lincorrect_file_format_error:
-    lea rdi, [rel incorrect_file]
-    call puts wrt ..plt
-    jmp .Lexit_err
-
-    .Lalloc_error:
-    lea rdi, [rel alloc_failed]
-    call puts wrt ..plt
-    jmp .Lexit_err_no_free
-
-    .Lexit_err:
-    ; free left_vals and right_vals
-    mov rdi, r12
-    call free wrt ..plt
-    mov rdi, r13
-    call free wrt ..plt
-
-    .Lexit_err_no_free:
-    ; exit
-    mov rax, 60
-    mov rdi, 1
-    syscall
+    call exit wrt ..plt

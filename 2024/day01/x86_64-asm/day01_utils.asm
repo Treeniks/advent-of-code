@@ -1,10 +1,10 @@
-global trim
-global sort
-global count_occurance
-
 extern isspace
 
 section .text
+
+global trim
+global sort
+global count_occurance
 
 ; removes whitespace at the beginning and end of a given string
 ; returns the new beginning, while setting a nullbyte for the new end

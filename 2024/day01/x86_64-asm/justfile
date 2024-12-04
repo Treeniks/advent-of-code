@@ -1,5 +1,5 @@
 run: build
-    ./day01
+    ./day01 input.txt
 
 build: assemble-main assemble-utils link
 
