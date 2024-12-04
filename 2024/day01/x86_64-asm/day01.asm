@@ -10,6 +10,7 @@ extern printf
 extern puts
 
 extern calloc
+extern reallocarray
 extern free
 
 extern strtok
@@ -46,13 +47,15 @@ _start:
 
     ; allocate left_vals and right_vals
     ; starting with size 0x1000
+    mov rbp, 0x100 ; rbp will always contain the size of the allocated area
+
     mov rdi, 0x8
-    mov rsi, 0x1000
+    mov rsi, rbp
     call calloc wrt ..plt
     mov [rel left_vals], rax
 
     mov rdi, 0x8
-    mov rsi, 0x1000
+    mov rsi, rbp
     call calloc wrt ..plt
     mov [rel right_vals], rax
 
@@ -64,7 +67,8 @@ _start:
     lea rsi, [rel input_file_mode]
     call fopen wrt ..plt
 
-    test rax, rax ; check if the file existed
+     ; check if the file existed
+    test rax, rax
     jne .Lfile_exists
 
     lea rdi, [rel no_file]
@@ -113,7 +117,32 @@ _start:
         ; rax now contains line's left value (i64)
 
         ; update left_vals
-        ; TODO: resize left_vals if needed
+
+        ; check first if left/right_vals needs to be resized
+        ; if so, we should resize both
+        ; rbp: size of the array
+        ; rbx: current number of elements in the array
+        cmp rbp, rbx
+        jg .Lend_resize
+            push rax
+
+            shl rbp, 1
+
+            mov rdi, r12
+            mov rsi, 8
+            mov rdx, rbp
+            call reallocarray wrt ..plt
+            mov r12, rax
+
+            mov rdi, r13
+            mov rsi, 8
+            mov rdx, rbp
+            call reallocarray wrt ..plt
+            mov r13, rax
+
+            pop rax
+        .Lend_resize:
+
         mov [r12 + rbx*8], rax
 
 
@@ -132,7 +161,6 @@ _start:
         ; rax now contains line's right value (i64)
 
         ; update right_vals
-        ; TODO: resize right_vals if needed
         mov [r13 + rbx*8], rax
 
 
@@ -209,6 +237,8 @@ _start:
     xor r15d, r15d ; result
     jmp .Loccurance_loop_begin
     .Loccurance_loop:
+        ; we don't need the size of the allocated area anymore,
+        ; so we can reuse rbp
         mov rbp, [r12 + r14*8]
 
         mov rdi, rbp
