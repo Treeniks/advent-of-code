@@ -257,6 +257,8 @@ _start:
     mov rdi, [rel getline_lineptr]
     call free wrt ..plt
 
+    close_file
+
     ; left_vals and right_vals now contain the appropriate values
     ; and rbx has their size
 
@@ -297,7 +299,6 @@ _start:
 
 
     ; solve part 2
-    push r14
     xor r14d, r14d ; index
     xor r15d, r15d ; result
     jmp .Loccurance_loop_begin
@@ -318,7 +319,6 @@ _start:
     .Loccurance_loop_begin:
         cmp rbx, r14
         jg .Loccurance_loop
-    pop r14
 
     ; print out the result of part 2
     lea rdi, [rel pf_part2]
@@ -328,7 +328,6 @@ _start:
 
     ; free left_vals and right_vals
     free_left_right_vals
-    close_file
 
     ; we call glibc exit instead of using syscalls
     ; because otherwise the prints seem to not get flushed properly
