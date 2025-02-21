@@ -1,0 +1,33 @@
+alias rx := run-x
+alias rm := run-m
+
+alias run := run-x
+alias r := run-x
+
+alias tx := test-x
+alias tm := test-m
+
+alias test := test-x
+alias t := test-x
+
+alias c := clean
+
+help:
+    @just --list
+
+run-x input="input.txt":
+    @clj -X:run :file '"{{input}}"'
+
+run-m input="input.txt":
+    @clj -M:run {{input}}
+
+test-x:
+    @clj -X:test
+
+test-m:
+    @clj -M:test
+
+clean:
+    rm -rf .clj-kondo
+    rm -rf .cpcache
+    rm -rf .lsp
